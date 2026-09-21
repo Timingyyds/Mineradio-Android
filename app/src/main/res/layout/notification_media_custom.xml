@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏自定义布局：标题 | 艺术家+时间 | 进度条 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:minHeight="64dp"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="6dp">
+
+    <!-- 上排：标题 -->
+    <TextView
+        android:id="@+id/ncm_text_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:text="歌曲名"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:includeFontPadding="false" />
+
+    <!-- 中排：艺术家 + 当前时间 / 总时长 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/ncm_text_artist"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="艺术家"
+            android:textColor="#99FFFFFF"
+            android:textSize="12sp"
+            android:includeFontPadding="false"
+            android:paddingRight="8dp" />
+
+        <TextView
+            android:id="@+id/ncm_text_position"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0:00"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:gravity="end" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=" / "
+            android:textColor="#66FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:gravity="end" />
+
+        <TextView
+            android:id="@+id/ncm_text_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0:00"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:gravity="end" />
+    </LinearLayout>
+
+    <!-- 下排：进度条（含10段点击区域） -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="16dp"
+        android:layout_marginTop="4dp">
+
+        <ProgressBar
+            android:id="@+id/ncm_seekbar_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="12dp"
+            android:layout_gravity="center_vertical"
+            android:max="1000"
+            android:progressDrawable="@android:drawable/progress_horizontal" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <View android:id="@+id/ncm_seek_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+            <View android:id="@+id/ncm_seek_9" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" />
+        </LinearLayout>
+    </FrameLayout>
+
+</LinearLayout>

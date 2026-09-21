@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MPKG Scene Renderer</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+  #glcanvas { display: block; width: 100vw; height: 100vh; }
+  #status { position: fixed; top: 4px; left: 4px; color: #0f0; font: 10px monospace; z-index: 10; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="glcanvas"></canvas>
+<div id="status">init...</div>
+<script>
+"use strict";
+
+// ============================================================
+// 工具函数
+// ============================================================
+const log = (msg) => { console.log(msg); document.getElementById('status').textContent = msg; };
+const err = (msg) => { console.error(msg); document.getElementById('status').textContent = 'ERR: ' + msg; };
+
+function base64ToUint8Array(base64) {
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function fetchBinary(url) {
+  if (typeof window.MpkgFS !== 'undefined' && window.MpkgFS && window.MpkgFS.readFile) {
+    try {
+      const b64 = window.MpkgFS.readFile(url);
+      if (b64) return base64ToUint8Array(b64);
+    } catch (e) { throw new Error('MpkgFS.readFile failed: ' + url + ' ' + e.message); }
+  }
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('fetch failed: ' + url + ' ' + resp.status);
+  return new Uint8Array(await resp.arrayBuffer());
+}
+async function fetchText(url) {
+  if (typeof window.MpkgFS !== 'undefined' && window.MpkgFS && window.MpkgFS.readFile) {
+    try {
+      const b64 = window.MpkgFS.readFile(url);
+      if (b64) {
+        const bytes = base64ToUint8Array(b64);
+        return new TextDecoder('utf-8').decode(bytes);
+      }
+    } catch (e) { throw new Error('MpkgFS.readFile failed: ' + url + ' ' + e.message); }
+  }
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('fetch failed: ' + url + ' ' + resp.status);
+  return resp.text();
+}
+async function fetchJSON(url) { return JSON.parse(await fetchText(url)); }
+
+const dv = (buf, offset) => new DataView(buf.buffer, buf.byteOffset + offset);
+function readU32LE(buf, off) { return dv(buf, off).getUint32(0, true); }
+function readI32LE(buf, off) { return dv(buf, off).getInt32(0, true); }
+function readF32LE(buf, off) { return dv(buf, off).getFloat32(0, true); }
+function readU16LE(buf, off) { return dv(buf, off).getUint16(0, true); }
+function readCString(buf, off) {
+  let end = off;
+  while (end < buf.length && buf[end] !== 0) end++;
+  return new TextDecoder('utf-8').decode(buf.subarray(off, end));
+}
+
+// ============================================================
+// MDLV0004 模型解析器
+// 顶点布局: pos(3f) + uv(2f) = 20B 或 pos(3f)+uv(2f)+normal(3f) = 32B
+// ============================================================
+function parseMDL(buf) {
+  const magic = readCString(buf, 0);
+  if (magic !== 'MDLV0004') throw new Error('not MDLV0004: ' + magic);
+  const meshCount = readU32LE(buf, 0x10);
+
+  let p = 0x14;
+  const materialPath = readCString(buf, p);
+  p += materialPath.length + 1;
+  while (p % 4 !== 0) p++;
+
+  const meshes = [];
+  for (let m = 0; m < meshCount; m++) {
+    p += 4; // reserved
+    const vertexDataSize = readU32LE(buf, p); p += 4;
+
+    let stride;
+    if (vertexDataSize % 32 === 0 && vertexDataSize / 32 >= 3) stride = 32;
+    else if (vertexDataSize % 20 === 0 && vertexDataSize / 20 >= 3) stride = 20;
+    else stride = 20;
+
+    const vertexCount = Math.floor(vertexDataSize / stride);
+    const positions = new Float32Array(vertexCount * 3);
+    const uvs = new Float32Array(vertexCount * 2);
+    const normals = (stride >= 32) ? new Float32Array(vertexCount * 3) : null;
+
+    for (let i = 0; i < vertexCount; i++) {
+      const base = p + i * stride;
+      positions[i*3]   = readF32LE(buf, base);
+      positions[i*3+1] = readF32LE(buf, base + 4);
+      positions[i*3+2] = readF32LE(buf, base + 8);
+      uvs[i*2]   = readF32LE(buf, base + 12);
+      uvs[i*2+1] = readF32LE(buf, base + 16);
+      if (normals) {
+        normals[i*3]   = readF32LE(buf, base + 20);
+        normals[i*3+1] = readF32LE(buf, base + 24);
+        normals[i*3+2] = readF32LE(buf, base + 28);
+      }
+    }
+    p += vertexDataSize;
+
+    const indexDataSize = readU32LE(buf, p); p += 4;
+    const indexCount = Math.floor(indexDataSize / 2);
+    const indices = new Uint16Array(indexCount);
+    for (let i = 0; i < indexCount; i++) indices[i] = readU16LE(buf, p + i * 2);
+    p += indexDataSize;
+
+    meshes.push({ positions, uvs, normals, indices });
+  }
+  return { materialPath, meshes };
+}
+
+// ============================================================
+// TEXV0005 纹理解析器 (DXT5 压缩)
+// ============================================================
+function parseTEX(buf) {
+  const magicV = readCString(buf, 0);
+  if (magicV !== 'TEXV0005') throw new Error('not TEXV0005: ' + magicV);
+  const format = readU32LE(buf, 0x10);
+  let width = readU32LE(buf, 0x1C);
+  let height = readU32LE(buf, 0x20);
+
+  // 查找 TEXB0003 标记
+  let texbOff = -1;
+  for (let i = 16; i < Math.min(buf.length - 8, 128); i++) {
+    if (buf[i] === 0x54 && buf[i+1] === 0x45 && buf[i+2] === 0x58 && buf[i+3] === 0x42) {
+      if (readCString(buf, i) === 'TEXB0003') { texbOff = i; break; }
+    }
+  }
+  if (texbOff < 0) throw new Error('TEXB0003 not found');
+
+  const blocksX = Math.ceil(width / 4);
+  const blocksY = Math.ceil(height / 4);
+  let dataLen;
+  if (format === 5) dataLen = blocksX * blocksY * 16;       // DXT5
+  else if (format === 0) dataLen = width * height * 4;       // RGBA8
+  else dataLen = blocksX * blocksY * 16;                      // 默认 DXT5
+
+  let actualDataOff = buf.length - dataLen;
+  if (actualDataOff < texbOff + 8) {
+    // 尝试 BC4 (8 bytes/block)
+    dataLen = blocksX * blocksY * 8;
+    actualDataOff = buf.length - dataLen;
+  }
+  if (actualDataOff < texbOff + 8 || actualDataOff > buf.length) {
+    throw new Error('cannot locate texture data');
+  }
+
+  return { format, width, height, data: buf.subarray(actualDataOff, actualDataOff + dataLen) };
+}
+
+// ============================================================
+// HLSL → GLSL ES 转换器
+// ============================================================
+function convertShader(src) {
+  let s = src;
+  // 移除条件编译块（保留首个分支）
+  s = s.replace(/#if\s+!?[A-Z]+(\s*&&\s*!?[A-Z]+)?\s*\n/g, '');
+  s = s.replace(/#elif\s+.*\n/g, '');
+  s = s.replace(/#endif\s*\n/g, '');
+  // mul(vec4(...), mat) → mat * vec4(...)
+  s = s.replace(/mul\(\s*vec4\(([^)]+)\)\s*,\s*(\w+)\s*\)/g, '$2 * vec4($1)');
+  // texSample2D → texture2D
+  s = s.replace(/texSample2D\(/g, 'texture2D(');
+  return s;
+}
+
+// ============================================================
+// 矩阵工具
+// ============================================================
+const M4 = {
+  identity: () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+  perspective: (fovY, aspect, near, far) => {
+    const f = 1 / Math.tan(fovY / 2);
+    const nf = 1 / (near - far);
+    return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+  },
+  lookAt: (eye, center, up) => {
+    const z = normalize([eye[0]-center[0], eye[1]-center[1], eye[2]-center[2]]);
+    const x = normalize(cross(up, z));
+    const y = cross(z, x);
+    return new Float32Array([
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -dot(x,eye), -dot(y,eye), -dot(z,eye), 1
+    ]);
+  },
+  translate: (m, x, y, z) => {
+    const r = new Float32Array(m);
+    r[12] += m[0]*x + m[4]*y + m[8]*z;
+    r[13] += m[1]*x + m[5]*y + m[9]*z;
+    r[14] += m[2]*x + m[6]*y + m[10]*z;
+    return r;
+  },
+  multiply: (a, b) => {
+    const r = new Float32Array(16);
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 4; j++)
+        r[i*4+j] = a[j]*b[i*4] + a[4+j]*b[i*4+1] + a[8+j]*b[i*4+2] + a[12+j]*b[i*4+3];
+    return r;
+  }
+};
+function normalize(v) { const l = Math.hypot(v[0],v[1],v[2]); return l > 0 ? [v[0]/l, v[1]/l, v[2]/l] : [0,0,0]; }
+function cross(a, b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+function parseVec3(str) { const p = str.trim().split(/\s+/); return [parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2])]; }
+
+// ============================================================
+// WebGL 渲染器
+// ============================================================
+let gl, canvas;
+const scene = { objects: [], camera: null, clearColor: [0.02, 0.05, 0.2, 1], schemeColor: [0.1,0.2,0.7], accentColor: [0.9,0.85,0.3] };
+const shaderCache = {};
+const textureCache = {};
+
+function initGL() {
+  canvas = document.getElementById('glcanvas');
+  gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+  if (!gl) { err('WebGL not supported'); return false; }
+  gl.clearColor(scene.clearColor[0], scene.clearColor[1], scene.clearColor[2], 1);
+  gl.enable(gl.DEPTH_TEST);
+  return true;
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+}
+
+function compileShader(type, src) {
+  const converted = convertShader(src);
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, converted);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const info = gl.getShaderInfoLog(sh);
+    console.error('Shader compile error:', info, '\nConverted:', converted, '\nOriginal:', src);
+    throw new Error('shader compile: ' + info);
+  }
+  return sh;
+}
+
+function createProgram(vertSrc, fragSrc) {
+  const vs = compileShader(gl.VERTEX_SHADER, vertSrc);
+  const fs = compileShader(gl.FRAGMENT_SHADER, fragSrc);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.bindAttribLocation(prog, 0, 'a_Position');
+  gl.bindAttribLocation(prog, 1, 'a_TexCoord');
+  gl.bindAttribLocation(prog, 2, 'a_Normal');
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('program link: ' + gl.getProgramInfoLog(prog));
+  return prog;
+}
+
+async function loadShader(name) {
+  if (shaderCache[name]) return shaderCache[name];
+  const vertSrc = await fetchText('shaders/' + name + '.vert');
+  const fragSrc = await fetchText('shaders/' + name + '.frag');
+  const prog = createProgram(vertSrc, fragSrc);
+  shaderCache[name] = prog;
+  return prog;
+}
+
+async function loadTexture(path) {
+  if (textureCache[path]) return textureCache[path];
+  const buf = await fetchBinary(path + '.tex');
+  const tex = parseTEX(buf);
+  const glTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, glTex);
+
+  if (tex.format === 5) {
+    const ext = gl.getExtension('WEBGL_compressed_texture_s3tc');
+    if (ext) {
+      gl.compressedTexImage2D(gl.TEXTURE_2D, 0, ext.COMPRESSED_RGBA_S3TC_DXT5_EXT, tex.width, tex.height, 0, tex.data);
+    } else {
+      const fb = new Uint8Array([100, 100, 100, 255]);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, fb);
+    }
+  } else {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tex.width, tex.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, tex.data);
+  }
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  textureCache[path] = glTex;
+  return glTex;
+}
+
+function createMesh(mesh) {
+  const posBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.STATIC_DRAW);
+  const uvBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, mesh.uvs, gl.STATIC_DRAW);
+  let normBuf = null;
+  if (mesh.normals) {
+    normBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.STATIC_DRAW);
+  }
+  const idxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+  return { posBuf, uvBuf, normBuf, idxBuf, indexCount: mesh.indices.length };
+}
+
+async function loadSceneObject(obj) {
+  const mdlBuf = await fetchBinary(obj.model);
+  const model = parseMDL(mdlBuf);
+  const material = await fetchJSON(model.materialPath);
+  const pass = material.passes[0];
+  const program = await loadShader(pass.shader);
+
+  const textures = [];
+  if (pass.textures) {
+    for (const texRef of pass.textures) textures.push(await loadTexture('materials/' + texRef));
+  }
+  const meshes = model.meshes.map(createMesh);
+  let origin = [0, 0, 0];
+  if (obj.origin) origin = parseVec3(obj.origin);
+  return { program, meshes, textures, pass, origin };
+}
+
+function render(time) {
+  resize();
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!scene.camera) { requestAnimationFrame(render); return; }
+
+  const aspect = canvas.width / canvas.height;
+  const proj = M4.perspective(Math.PI / 3, aspect, 0.01, 100);
+  const view = M4.lookAt(scene.camera.eye, scene.camera.center, scene.camera.up);
+  const vp = M4.multiply(proj, view);
+  const t = time * 0.001;
+
+  for (const obj of scene.objects) {
+    gl.useProgram(obj.program);
+    const mvpLoc = gl.getUniformLocation(obj.program, 'g_ModelViewProjectionMatrix');
+    const model = M4.translate(M4.identity(), obj.origin[0], obj.origin[1], obj.origin[2]);
+    gl.uniformMatrix4fv(mvpLoc, false, M4.multiply(vp, model));
+
+    const timeLoc = gl.getUniformLocation(obj.program, 'g_Time');
+    if (timeLoc) gl.uniform1f(timeLoc, t);
+    const eyeLoc = gl.getUniformLocation(obj.program, 'g_EyePosition');
+    if (eyeLoc) gl.uniform3f(eyeLoc, scene.camera.eye[0], scene.camera.eye[1], scene.camera.eye[2]);
+    const tintLoc = gl.getUniformLocation(obj.program, 'g_Tint');
+    if (tintLoc) gl.uniform3f(tintLoc, scene.schemeColor[0], scene.schemeColor[1], scene.schemeColor[2]);
+    const tintAccentLoc = gl.getUniformLocation(obj.program, 'g_TintAccent');
+    if (tintAccentLoc) gl.uniform3f(tintAccentLoc, scene.accentColor[0], scene.accentColor[1], scene.accentColor[2]);
+    const speedLoc = gl.getUniformLocation(obj.program, 'g_Speed');
+    if (speedLoc) gl.uniform1f(speedLoc, 0.3);
+
+    for (let i = 0; i < obj.textures.length; i++) {
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, obj.textures[i]);
+      const loc = gl.getUniformLocation(obj.program, 'g_Texture' + i);
+      if (loc) gl.uniform1i(loc, i);
+    }
+
+    if (obj.pass.blending === 'additive') { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); }
+    else gl.disable(gl.BLEND);
+    if (obj.pass.depthwrite === 'disabled') gl.depthMask(false); else gl.depthMask(true);
+    if (obj.pass.depthtest === 'disabled') gl.disable(gl.DEPTH_TEST); else gl.enable(gl.DEPTH_TEST);
+    if (obj.pass.cullmode === 'nocull') gl.disable(gl.CULL_FACE); else gl.enable(gl.CULL_FACE);
+
+    for (const mesh of obj.meshes) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.posBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.uvBuf);
+      gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(1);
+      if (mesh.normBuf) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normBuf);
+        gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(2);
+      }
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.idxBuf);
+      gl.drawElements(gl.TRIANGLES, mesh.indexCount, gl.UNSIGNED_SHORT, 0);
+    }
+  }
+  requestAnimationFrame(render);
+}
+
+async function main() {
+  try {
+    log('loading project.json...');
+    let sceneFile = 'scene.json';
+    try {
+      const proj = await fetchJSON('project.json');
+      if (proj.file) sceneFile = proj.file;
+      if (proj.general && proj.general.properties) {
+        const props = proj.general.properties;
+        if (props.schemecolor && props.schemecolor.value) scene.schemeColor = parseVec3(props.schemecolor.value);
+        if (props.accentcolor && props.accentcolor.value) scene.accentColor = parseVec3(props.accentcolor.value);
+      }
+    } catch (e) { console.warn('project.json load failed', e); }
+
+    log('loading ' + sceneFile + '...');
+    const sceneDef = await fetchJSON(sceneFile);
+    if (sceneDef.camera) {
+      scene.camera = {
+        eye: parseVec3(sceneDef.camera.eye),
+        center: parseVec3(sceneDef.camera.center),
+        up: parseVec3(sceneDef.camera.up)
+      };
+    }
+    if (sceneDef.general && sceneDef.general.clearcolor) {
+      const c = parseVec3(sceneDef.general.clearcolor);
+      scene.clearColor = [c[0], c[1], c[2], 1];
+    }
+    if (!initGL()) return;
+
+    for (const obj of sceneDef.objects) {
+      log('loading: ' + obj.model);
+      scene.objects.push(await loadSceneObject(obj));
+    }
+    log('rendering...');
+    requestAnimationFrame(render);
+  } catch (e) {
+    err(e.message);
+    console.error(e);
+  }
+}
+
+window.addEventListener('load', main);
+</script>
+</body>
+</html>

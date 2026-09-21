@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<provider>
+    <cache-path
+        name="cache"
+        path="." />
+
+    <!-- 外部存储公共目录（Download），用于云更新 APK 安装 -->
+    <external-path
+        name="external_storage"
+        path="." />
+
+    <!-- 应用专属外部存储 -->
+    <external-files-path
+        name="external_files"
+        path="." />
+
+</provider>

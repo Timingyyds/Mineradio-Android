@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- M letter -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M33,70 L33,32 L54,56 L75,32 L75,70" />
+
+    <!-- Radio wave 1 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:alpha="0.7"
+        android:pathData="M38,78 Q54,72 70,78" />
+
+    <!-- Radio wave 2 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:alpha="0.4"
+        android:pathData="M33,84 Q54,76 75,84" />
+
+</vector>

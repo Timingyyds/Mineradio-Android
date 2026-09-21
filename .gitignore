@@ -1,0 +1,105 @@
+# ══════════════════════════════════════════════
+#  Android / Gradle 构建产物
+#  刻意用 /*/ 锚定到「模块根级」，不要写成裸 build/
+#  因为 app/src/main/nodejs-project-src/node_modules/<pkg>/build/
+#  是 npm 包自带的必需产物，写裸 build/ 会误伤
+# ══════════════════════════════════════════════
+/.gradle/
+/.kotlin/
+/build/
+/*/build/
+/*/.cxx/
+/*/.gradle/
+/*/.kotlin/
+/captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+output-metadata.json
+
+# ══════════════════════════════════════════════
+#  本机配置（不含密钥，保持忽略）
+# ══════════════════════════════════════════════
+local.properties
+keystore.properties
+
+# ══════════════════════════════════════════════
+#  ⚠️ 重要：密钥文件按作者决定**一并公开**
+#
+#  key.jks 与 app/build.gradle 中的签名口令均随仓库发布，
+#  目的是让任何人都能构建出与本项目正式版完全一致的 APK。
+#
+#  这意味着：任何人都可以用该密钥签出同包名、同签名的安装包，
+#  且 Android 会将其视为本应用的合法升级包。
+#
+#  如果你将来改变主意，请：
+#    1. 在下面取消注释 key.jks 与 *.jks
+#    2. 用 git filter-repo 清理历史（仅删文件无效，历史里仍有）
+#    3. 轮换签名密钥 —— 已公开的密钥无法收回
+# ══════════════════════════════════════════════
+# key.jks
+# *.jks
+*.keystore
+*.p12
+*.pem
+*.pfx
+
+# ══════════════════════════════════════════════
+#  登录态、Cookie 与令牌
+# ══════════════════════════════════════════════
+.cookie
+.qq-cookie
+.kugou-cookie
+.kugou-vip-evidence.json
+.qishui-cookie
+.qishui-token
+.qishui-oauth.json
+.qishui-qr-identity.json
+.qishui-qr-login.json
+.spotify-credentials.json
+spotify-credentials.json
+.spotify-token.json
+spotify-token.json
+listen-sync-journal.json
+login-easter-egg-state.json
+.env
+.env.*
+
+# ══════════════════════════════════════════════
+#  系统与编辑器
+# ══════════════════════════════════════════════
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# ══════════════════════════════════════════════
+#  日志与临时文件
+# ══════════════════════════════════════════════
+*.log
+*.tmp
+*.cache
+__pycache__/
+*.pyc
+
+# ══════════════════════════════════════════════
+#  本地辅助脚本与临时文件（不随仓库分发）
+# ══════════════════════════════════════════════
+/_*.py
+/_*.sh
+# 根目录的构建/调试日志（如 verify_*.txt、build_*.txt）
+/*.txt
+
+# ══════════════════════════════════════════════
+#  ★ 例外说明
+#  app/src/main/nodejs-project-src/node_modules/
+#   是 Node.js 桥接的运行时依赖，构建时会加密进 assets，
+#   属于源码的一部分，必须提交，因此此处刻意不做全局忽略。
+# ══════════════════════════════════════════════

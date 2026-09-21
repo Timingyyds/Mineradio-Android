@@ -1,0 +1,6 @@
+{
+	"format" : "rgba8888",
+	"nointerpolation" : true,
+	"nomip" : true,
+	"nonpoweroftwo" : true
+}

@@ -1,0 +1,89 @@
+package com.mineradio.app.storage.impl.repository
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
+import com.mineradio.app.common.entity.PlayHistory
+import com.mineradio.app.common.entity.PlayStats
+import com.mineradio.app.common.entity.TopSong
+import com.mineradio.app.storage.api.IPlayHistoryRepository
+import com.mineradio.app.storage.impl.dao.PlayHistoryDao
+import com.mineradio.app.storage.impl.entity.PlayHistoryEntity
+import com.mineradio.app.storage.impl.mapper.toCommon
+import com.mineradio.app.storage.impl.mapper.toEntity
+import java.util.Calendar
+
+class PlayHistoryRepositoryImpl(
+    private val playHistoryDao: PlayHistoryDao,
+) : IPlayHistoryRepository {
+    override fun getAllPlayHistoryFlow(): Flow<List<PlayHistory>> = flow {
+        emit(withContext(Dispatchers.IO) {
+            playHistoryDao.getAll().map { it.toCommon() }
+        })
+    }
+
+    override fun getRecentPlayHistoryFlow(limit: Int): Flow<List<PlayHistory>> = flow {
+        emit(withContext(Dispatchers.IO) {
+            playHistoryDao.getRecent(limit).map { it.toCommon() }
+        })
+    }
+
+    override suspend fun addPlayHistory(songId: Long) = withContext(Dispatchers.IO) {
+        playHistoryDao.insert(
+            PlayHistoryEntity(
+                mediaId = songId,
+                time = System.currentTimeMillis()
+            )
+        )
+    }
+
+    override suspend fun addPlayHistory(item: PlayHistory) = withContext(Dispatchers.IO) {
+        playHistoryDao.insert(item.toEntity())
+    }
+
+    override fun insertPlayHistory(item: PlayHistory) {
+        // synchronous wrapper (prefer suspend addPlayHistory)
+        playHistoryDao.insert(item.toEntity())
+    }
+
+    override suspend fun clearPlayHistory() = withContext(Dispatchers.IO) {
+        playHistoryDao.deleteAll()
+    }
+
+    override suspend fun deletePlayHistory(songId: Long) = withContext(Dispatchers.IO) {
+        playHistoryDao.deleteByMediaId(songId)
+    }
+
+    override suspend fun getWeeklyStats(): PlayStats = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val cal = Calendar.getInstance()
+        cal.firstDayOfWeek = Calendar.MONDAY
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val from = cal.timeInMillis
+        val to = now
+        val totalDuration = playHistoryDao.sumPlayedDurationRange(from, to) ?: 0L
+        val playCount = playHistoryDao.countPlayEventsRange(from, to)
+        val uniqueSongs = playHistoryDao.countDistinctMediaRange(from, to)
+        PlayStats(totalDuration, playCount, uniqueSongs)
+    }
+
+    override suspend fun getAllTimeStats(): PlayStats = withContext(Dispatchers.IO) {
+        val totalDuration = playHistoryDao.totalPlayedDuration() ?: 0L
+        val playCount = playHistoryDao.totalPlayEvents()
+        val uniqueSongs = playHistoryDao.totalDistinctMedia()
+        PlayStats(totalDuration, playCount, uniqueSongs)
+    }
+
+    override suspend fun getTopSongsByDuration(limit: Int): List<TopSong> = withContext(Dispatchers.IO) {
+        playHistoryDao.topSongsAllTime(limit).map { TopSong(it.mediaId, it.totalDuration, it.playCount) }
+    }
+
+    override suspend fun getTopSongsByDurationInRange(from: Long, to: Long, limit: Int): List<TopSong> = withContext(Dispatchers.IO) {
+        playHistoryDao.topSongsRange(from, to, limit).map { TopSong(it.mediaId, it.totalDuration, it.playCount) }
+    }
+}

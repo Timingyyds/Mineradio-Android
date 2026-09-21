@@ -1,0 +1,94 @@
+package com.mineradio.app.storage.impl.db
+
+import androidx.room.Database
+import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.mineradio.app.storage.impl.dao.AlbumDao
+import com.mineradio.app.storage.impl.dao.ExtraInfoDao
+import com.mineradio.app.storage.impl.dao.PlayHistoryDao
+import com.mineradio.app.storage.impl.dao.PlaylistDao
+import com.mineradio.app.storage.impl.dao.ScanFolderDao
+import com.mineradio.app.storage.impl.dao.SongDao
+import com.mineradio.app.storage.impl.entity.AlbumEntity
+import com.mineradio.app.storage.impl.entity.ExtraInfoEntity
+import com.mineradio.app.storage.impl.entity.PlayHistoryEntity
+import com.mineradio.app.storage.impl.entity.PlaylistEntity
+import com.mineradio.app.storage.impl.entity.PlaylistSongCrossRefEntity
+import com.mineradio.app.storage.impl.entity.ScanFolderEntity
+import com.mineradio.app.storage.impl.entity.SongEntity
+
+@Database(
+    entities = [SongEntity::class, PlaylistEntity::class, PlaylistSongCrossRefEntity::class,
+        ExtraInfoEntity::class, PlayHistoryEntity::class, AlbumEntity::class,
+        ScanFolderEntity::class],
+    version = 15,
+    exportSchema = false,
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun songDao(): SongDao
+    abstract fun playlistDao(): PlaylistDao
+    abstract fun lyricDao(): ExtraInfoDao
+    abstract fun playHistoryDao(): PlayHistoryDao
+    abstract fun albumDao(): AlbumDao
+    abstract fun scanFolderDao(): ScanFolderDao
+
+    companion object {
+        /** v5 → v6: Song 表新增 dateModified 列，用于增量扫描 */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE Song ADD COLUMN dateModified INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** v9 → v10: 新增 ScanFolder 表，支持额外扫描文件夹和忽略文件夹 */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS ScanFolder (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        uriString   TEXT    NOT NULL,
+                        displayName TEXT    NOT NULL,
+                        folderType  INTEGER NOT NULL DEFAULT 0,
+                        pathPrefix  TEXT,
+                        addedAt     INTEGER NOT NULL DEFAULT 0,
+                        isAccessible INTEGER NOT NULL DEFAULT 1
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        /** v12 → v13: Song 表新增 waveformData 列，存储波形数据 */
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    ALTER TABLE Song ADD COLUMN waveformData TEXT
+                    """.trimIndent()
+                )
+            }
+
+        }
+
+        /** v13 -> v14: PlaylistSongCrossRef 新增 sortOrder，用于自定义歌单手动排序 */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    ALTER TABLE PlaylistSongCrossRef
+                    ADD COLUMN sortOrder INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+                db.execSQL("UPDATE PlaylistSongCrossRef SET sortOrder = insertTime * 1000000")
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS index_PlaylistSongCrossRef_playlistId_sortOrder
+                    ON PlaylistSongCrossRef(playlistId, sortOrder)
+                    """.trimIndent()
+                )
+            }
+        }
+    }
+}

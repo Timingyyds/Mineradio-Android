@@ -1,0 +1,438 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import java.security.MessageDigest
+import java.security.SecureRandom
+
+plugins {
+  alias(libs.plugins.android.application)
+  alias(libs.plugins.kotlin.android)
+  id 'kotlin-parcelize'
+  alias(libs.plugins.ksp)
+  alias(libs.plugins.jetbrains.kotlin.serialization)
+  alias(libs.plugins.compose.compiler)
+  id "org.jlleitschuh.gradle.ktlint" version "14.2.0"
+  alias(libs.plugins.stability.analyzer)
+}
+
+android {
+  namespace 'com.mineradio.app'
+  compileSdk = 37
+
+  def props = new Properties()
+  file("$rootDir/gradle.properties").withInputStream { props.load(it) }
+  def MAJOR_VERSION = Integer.parseInt(props["MAJOR_VERSION"])
+  def MINOR_VERSION = Integer.parseInt(props["MINOR_VERSION"])
+  def BUILD_VERSION = Integer.parseInt(props["BUILD_VERSION"])
+  def PATCH_VERSION = Integer.parseInt(props["PATCH_VERSION"])
+  // ★ versionCode 加入 3_000_000 基数，避免从旧 3.0.0 降级安装被系统拦截
+  // versionName 为 MAJOR.MINOR.BUILD.PATCH（如 1.1.6.1）
+  rootProject.ext.buildVersionCode =
+      3_000_000 + (MAJOR_VERSION) * 1_000_000 + (MINOR_VERSION) * 100_000 + BUILD_VERSION * 1000 + PATCH_VERSION
+  rootProject.ext.buildVersionName = "$MAJOR_VERSION.$MINOR_VERSION.$BUILD_VERSION.$PATCH_VERSION"
+
+  println("buildVersionCode = ${rootProject.ext.buildVersionCode}")
+  println("buildVersionName= ${rootProject.ext.buildVersionName}")
+
+  defaultConfig {
+        applicationId "com.mineradio.app"
+        minSdk 26
+        targetSdk 35
+    versionCode buildVersionCode
+    versionName buildVersionName
+
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    vectorDrawables {
+      useSupportLibrary true
+    }
+    ndk {
+      //armeabi armeabi-v7a arm64-v8a x86 x86_64
+      abiFilters 'arm64-v8a'
+    }
+    externalNativeBuild {
+      cmake {
+        // ★ 使用 c++_shared 共享 STL，打包 libc++_shared.so
+        //   libnode.so 依赖 libc++_shared.so，缺少此参数会导致 dlopen 失败（UnsatisfiedLinkError）
+        arguments "-DANDROID_STL=c++_shared"
+        cppFlags "-std=c++17 -fexceptions -frtti"
+      }
+    }
+  }
+
+  signingConfigs {
+    signingConfig {
+      storeFile rootProject.file("key.jks")
+      storePassword 'SPICa27'
+      keyAlias 'wuqi'
+      keyPassword 'SPICa27'
+    }
+  }
+
+  lint {
+    checkReleaseBuilds false
+    abortOnError false
+  }
+
+  buildTypes {
+    release {
+      // ★ 按用户偏好：不启用全代码混淆(不做 minify/shrink)，仅加密 assets/nodejs-project 重要文件
+      minifyEnabled false
+      shrinkResources false
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+      signingConfig signingConfigs.signingConfig
+    }
+    debug {
+      minifyEnabled false
+      signingConfig signingConfigs.signingConfig
+    }
+  }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_11
+    targetCompatibility JavaVersion.VERSION_11
+  }
+  buildFeatures {
+    compose true
+    buildConfig = true
+  }
+  // ★ Native 构建：编译 libmr_decrypt.so（RSA 私钥保护）
+  externalNativeBuild {
+    cmake {
+      path "src/main/cpp/CMakeLists.txt"
+      version "3.22.1"
+    }
+  }
+  sourceSets {
+    main {
+      jniLibs.srcDirs = ['libs']
+      // ★ 将构建时生成的加密 assets 目录加入源集
+      assets.srcDirs += file("${buildDir}/generated/assets")
+    }
+  }
+  //  kapt {
+  //    correctErrorTypes = true
+  //  }
+  packaging {
+    resources {
+      it.excludes += ["/META-INF/{AL2.0,LGPL2.1}", "META-INF/androidx*", "META-INF/androidx/**"]
+    }
+    jniLibs {
+      useLegacyPackaging true
+    }
+  }
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_11
+  }
+}
+
+//build.gradle
+ktlint {
+  android = true // Enable Android-specific linting rules
+  ignoreFailures = true // Fail the build if KtLint finds any issues
+}
+
+tasks.getByPath("preBuild").dependsOn("ktlintFormat")
+
+dependencies {
+  // 模块依赖
+  implementation project(':common')
+  implementation project(':core-preferences')
+  implementation project(':feature-library-data')
+  implementation project(':feature-player-data')
+  implementation project(':feature-lyrics-data')
+  implementation project(':feature-library-domain')
+  implementation project(':feature-player-domain')
+  implementation project(':feature-settings-domain')
+  implementation project(':feature-lyrics-domain')
+  implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
+  implementation libs.androidx.core.ktx
+  implementation libs.androidx.lifecycle.runtime.ktx
+  implementation libs.androidx.lifecycle.process
+  implementation libs.androidx.activity.compose
+  implementation platform(libs.androidx.compose.bom)
+  implementation libs.androidx.ui
+  implementation libs.androidx.ui.graphics
+  implementation libs.androidx.ui.tooling.preview
+  implementation libs.androidautosize
+  implementation libs.androidx.constraintlayout
+  testImplementation libs.junit
+  androidTestImplementation libs.androidx.junit
+  androidTestImplementation libs.androidx.espresso.core
+  androidTestImplementation platform(libs.androidx.compose.bom)
+  androidTestImplementation libs.androidx.ui.test.junit4
+  debugImplementation libs.androidx.ui.tooling
+  debugImplementation libs.androidx.ui.test.manifest
+  implementation(libs.androidx.lifecycle.viewmodel.compose)
+  implementation(libs.androidx.media3.exoplayer.ffmpeg)
+
+  implementation libs.timber
+  implementation(libs.accompanist.permissions)
+  implementation(libs.androidx.paging.compose)
+
+  //  implementation project(":decoder_flac")
+  implementation libs.kotlinx.serialization.core
+  implementation libs.androidx.adaptive
+  implementation libs.androidx.adaptive.layout
+//  implementation libs.androidx.adaptive.navigation
+  // Jetpack Compose integration - Navigation 3
+  implementation libs.androidx.navigation3.runtime
+  implementation libs.androidx.navigation3.ui
+  implementation libs.androidx.lifecycle.viewmodel.navigation3
+  implementation libs.material3
+
+  implementation(libs.landscapist.core)
+  implementation(libs.landscapist.image)
+
+  // 播放器相关依赖 (实现层需要)
+  implementation libs.androidx.media3.exoplayer
+  implementation libs.androidx.media3.datasource
+  implementation libs.androidx.media
+  implementation libs.androidx.media3.session
+  implementation libs.kotlinx.coroutines.guava
+
+  implementation libs.amplituda
+  implementation(libs.androidx.dynamicanimation.ktx)
+
+  // 网络请求
+  implementation libs.okhttp
+  implementation(libs.logging.interceptor)
+  implementation libs.retrofit
+  implementation libs.converter.moshi
+  implementation libs.sandwich.retrofit
+  implementation libs.moshi.kotlin
+  ksp libs.moshi.kotlin.codegen
+
+  //  implementation(libs.androidliquidglass)
+  implementation libs.androidx.constraintlayout.compose
+  implementation libs.androidx.compose.material.icons.core
+  implementation libs.prettytime
+  implementation libs.koin.androidx.compose
+  implementation(libs.pinyin4j)
+  implementation(libs.androidx.compose.material.icons.extended)
+  implementation(libs.androidx.palette.ktx)
+  implementation(libs.cloudy)
+  // 本地导航库
+  implementation project(':navkit')
+
+  implementation libs.androidx.graphics.core
+  implementation libs.androidx.graphics.path
+  implementation libs.androidx.graphics.shapes
+
+  implementation(libs.materialKolor)
+  implementation(libs.landscapist.transformation)
+  implementation(libs.reorderable)
+  implementation("com.google.zxing:core:3.5.3")
+  implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+  implementation("androidx.media:media:1.7.0")
+  // ── CameraX (原生摄像头，替代 WebView getUserMedia) ──
+  def camerax_version = "1.4.1"
+  implementation("androidx.camera:camera-core:${camerax_version}")
+  implementation("androidx.camera:camera-camera2:${camerax_version}")
+  implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+  implementation("androidx.camera:camera-view:${camerax_version}")
+  // ── MediaPipe Tasks Vision (手部关键点检测) ──
+  implementation("com.google.mediapipe:tasks-vision:0.10.35")
+  // ── WorkManager（壁纸保活持久化兜底） ──
+  implementation("androidx.work:work-runtime-ktx:2.9.1")
+}
+
+
+tasks.register('incrementBuildNumber') {
+  doLast {
+    def filePath = rootProject.file("gradle.properties")
+    if (!filePath.exists()) {
+      return
+    }
+    def props = new Properties()
+    props.load(new FileInputStream(filePath))
+    String currentBuildNumber = props["BUILD_VERSION"]
+    Integer buildNumber = Integer.parseInt(currentBuildNumber)
+    buildNumber++
+    if (buildNumber >= 10_000) {
+      throw new IllegalStateException("Build number limited to 3 digits; cannot exceed 10,000")
+    }
+    props["BUILD_VERSION"] = buildNumber.toString()
+    def os = new FileOutputStream(filePath)
+    props.store(os, null)
+  }
+}
+//tasks.getByPath("preBuild").dependsOn("incrementBuildNumber")
+
+// ═══════════════════════════════════════════════
+//  Mineradio Assets 加密任务
+//  将 src/main/mineradio_src/ 中的明文文件用 AES-CBC 加密后
+//  输出到 build/generated/assets/mineradio/，打包进 APK
+// ═══════════════════════════════════════════════
+
+// 密钥 passphrase（与 AssetDecryptor.kt 中的 KEY_PASSPHRASE 一致）
+// "Sp1ca@Minerad1o#2024$SecureAssetKey!" 的 ASCII 字节数组
+def MINERADIO_KEY_PASSPHRASE_BYTES = [
+    83, 112, 49, 99, 97, 64, 77, 105, 110, 101, 114, 97, 100, 49, 111, 35,
+    50, 48, 50, 52, 36, 83, 101, 99, 117, 114, 101, 65, 115, 115, 101, 116,
+    75, 101, 121, 33
+] as byte[]
+
+def mineradioSrcDir = file("src/main/mineradio_src")
+def mineradioEncDir = file("${buildDir}/generated/assets/mineradio")
+
+task encryptMineradioAssets {
+    description = 'Encrypts mineradio_src assets into build/generated/assets/mineradio (AES-CBC)'
+    group = 'build'
+    inputs.dir mineradioSrcDir
+    outputs.dir mineradioEncDir
+
+    doLast {
+        if (!mineradioSrcDir.exists()) {
+            logger.warn("encryptMineradioAssets: src/main/mineradio_src not found, skipping")
+            return
+        }
+
+        // 清理旧输出（处理源文件删除的情况）
+        if (mineradioEncDir.exists()) {
+            mineradioEncDir.deleteDir()
+        }
+        mineradioEncDir.mkdirs()
+
+        // 派生 256 位 AES 密钥
+        def keyBytes = MessageDigest.getInstance('SHA-256').digest(MINERADIO_KEY_PASSPHRASE_BYTES)
+        def random = new SecureRandom()
+        def magic = [77, 69, 78, 67] as byte[]  // "MENC"
+
+        def srcBase = mineradioSrcDir.canonicalPath
+        int count = 0
+
+        mineradioSrcDir.eachFileRecurse { srcFile ->
+            if (!srcFile.isFile()) return
+
+            def relPath = srcFile.canonicalPath.substring(srcBase.length() + 1)
+            relPath = relPath.replace('\\', '/')
+            def outFile = new File(mineradioEncDir, relPath)
+            outFile.parentFile.mkdirs()
+
+            def plainBytes = srcFile.bytes
+            def iv = new byte[16]
+            random.nextBytes(iv)
+
+            def cipher = Cipher.getInstance('AES/CBC/PKCS5Padding')
+            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, 'AES'), new IvParameterSpec(iv))
+            def encBytes = cipher.doFinal(plainBytes)
+
+            outFile.withOutputStream { out ->
+                out.write(magic)    // 4 字节魔数
+                out.write(iv)       // 16 字节 IV
+                out.write(encBytes) // 密文
+            }
+            count++
+        }
+
+        logger.lifecycle("encryptMineradioAssets: ${count} files encrypted → ${mineradioEncDir}")
+    }
+}
+
+// 确保构建前完成加密
+tasks.getByPath(':app:preBuild').dependsOn('encryptMineradioAssets')
+
+// ═══════════════════════════════════════════════
+//  NodeJS Project 准备任务
+//  将 src/main/nodejs-project-src/ 复制到 build/generated/assets/nodejs-project/
+//  对重要业务文件用 AES-CBC 加密(MENC 格式),start.js 保持明文(Node 入口)
+//  运行时由 start.js 注入的 Module._extensions['.js'] hook 自动解密
+// ═══════════════════════════════════════════════
+
+def nodejsSrcDir = file("src/main/nodejs-project-src")
+def nodejsOutDir = file("${buildDir}/generated/assets/nodejs-project")
+
+// 需要加密的重要文件(相对路径,POSIX 风格)
+// 不加密: start.js(Node 入口必须明文)、package.json(Node 读取 JSON 不走 _compile)、
+//         qishui-auth-v6/react.js|react-dom.js(开源库)、*.html(HTML 资源)、
+//         build/**(二进制资源)、node_modules/**(第三方代码)
+def NODEJS_ENCRYPT_FILES = [
+    'server.js',
+    'qishui-api.js',
+    'qishui-auth-v6.js',
+    'qishui-qr-login.js',
+    'qq-vip-api.js',
+    'kugou-api.js',
+    'spotify-api.js',
+    'dj-analyzer.js',
+    'cuefield/adapter-mineradio.js',
+    'cuefield/cue-profile.js',
+    'cuefield/feedback-log.js',
+    'cuefield/lrc-anchors.js',
+    'cuefield/mineradio-bridge.js',
+    'cuefield/recipe-planner.js',
+    'cuefield/section-candidates.js',
+    'cuefield/transition-evaluator.js',
+    'qishui-audio-decryptor/decrypt-utils.js',
+    'qishui-audio-decryptor/mp4-box.js',
+    'qishui-audio-decryptor/track-decryptor.js',
+    'qishui-auth-v6/bdms.js',
+    'qishui-auth-v6/sdk-glue.js'
+] as Set
+
+task prepareNodejsProject {
+    description = 'Copies nodejs-project-src to build/generated/assets/nodejs-project, encrypting important files (MENC format)'
+    group = 'build'
+    inputs.dir nodejsSrcDir
+    outputs.dir nodejsOutDir
+
+    doLast {
+        if (!nodejsSrcDir.exists()) {
+            logger.warn("prepareNodejsProject: src/main/nodejs-project-src not found, skipping")
+            return
+        }
+
+        // 清理旧输出(处理源文件删除/改名的情况)
+        if (nodejsOutDir.exists()) {
+            nodejsOutDir.deleteDir()
+        }
+        nodejsOutDir.mkdirs()
+
+        // 复用 encryptMineradioAssets 的密钥派生(passphrase 一致,start.js 用同一密钥解密)
+        def keyBytes = MessageDigest.getInstance('SHA-256').digest(MINERADIO_KEY_PASSPHRASE_BYTES)
+        def random = new SecureRandom()
+        def magic = [77, 69, 78, 67] as byte[]  // "MENC"
+
+        def srcBase = nodejsSrcDir.canonicalPath
+        int encCount = 0
+        int copyCount = 0
+
+        nodejsSrcDir.eachFileRecurse { srcFile ->
+            if (!srcFile.isFile()) return
+
+            def relPath = srcFile.canonicalPath.substring(srcBase.length() + 1)
+            relPath = relPath.replace('\\', '/')
+            def outFile = new File(nodejsOutDir, relPath)
+            outFile.parentFile.mkdirs()
+
+            if (NODEJS_ENCRYPT_FILES.contains(relPath)) {
+                // 加密: MENC(4) + IV(16) + AES/CBC/PKCS5 密文
+                def plainBytes = srcFile.bytes
+                def iv = new byte[16]
+                random.nextBytes(iv)
+                def cipher = Cipher.getInstance('AES/CBC/PKCS5Padding')
+                cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, 'AES'), new IvParameterSpec(iv))
+                def encBytes = cipher.doFinal(plainBytes)
+                outFile.withOutputStream { out ->
+                    out.write(magic)
+                    out.write(iv)
+                    out.write(encBytes)
+                }
+                encCount++
+            } else {
+                // 直接复制(包括 start.js, node_modules/**, package.json, react*.js, *.html, build/**)
+                outFile.bytes = srcFile.bytes
+                copyCount++
+            }
+        }
+
+        logger.lifecycle("prepareNodejsProject: ${encCount} encrypted, ${copyCount} copied → ${nodejsOutDir}")
+    }
+}
+
+// 确保构建前完成 nodejs-project 准备
+tasks.getByPath(':app:preBuild').dependsOn('prepareNodejsProject')

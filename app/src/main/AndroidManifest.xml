@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- ★ 壁纸外部存储兼容：旧版本（Android 9 及以下）需要 WRITE_EXTERNAL_STORAGE -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 壁纸功能所需权限 -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
+    <uses-permission android:name="android.permission.BIND_WALLPAPER"
+        tools:ignore="ProtectedPermissions" />
+    <!-- ★ SET_WALLPAPER_COMPONENT: 用于通过反射调用 setWallpaperComponent 重新绑定 LWService
+         这是 signature|privileged 级权限，普通应用通常无法获取，但声明后某些设备/系统可能授予 -->
+    <uses-permission
+        android:name="android.permission.SET_WALLPAPER_COMPONENT"
+        tools:ignore="ProtectedPermissions" />
+    <!-- 壁纸开机自启动所需权限 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- ★ AlarmManager 精确闹钟权限（用于壁纸保活心跳和重启） -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SET_ALARM" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- ★ 车机（Android Automotive）适配：声明非必需，允许安装到车机但不阻止手机安装 -->
+    <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
+    <uses-feature android:name="android.software.car.navigationBar" android:required="false" />
+    <!-- 车机通常无触摸屏，声明非必需 -->
+    <uses-feature android:name="android.hardware.faketouch" android:required="false" />
+
+    <uses-permission
+        android:name="android.permission.SEND_SMS"
+        tools:ignore="SmsAndCallLogPolicy"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_SMS"
+        tools:ignore="SmsAndCallLogPolicy"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.RECEIVE_SMS"
+        tools:ignore="SmsAndCallLogPolicy"
+        tools:node="remove" />
+
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+            <data android:mimeType="vnd.android.cursor.dir/phone_v2" />
+        </intent>
+    </queries>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+            <data android:mimeType="vnd.android.cursor.dir/phone_v2" />
+        </intent>
+    </queries>
+
+    <attribution android:tag="audioPlayback" android:label="@string/audio_playback_attribution"/>
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="true"
+        android:preserveLegacyExternalStorage="true"
+        android:requestLegacyExternalStorage="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SPICaMusic"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="33">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+
+        <!-- ★ Launcher 启动壳：竖屏 Compose 界面已移除，onCreate 后立即转入 LandscapeWebActivity
+             横屏声明避免启动瞬间竖屏闪烁 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:alwaysRetainTaskState="true"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
+            android:theme="@style/Theme.SPICaMusic">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:screenOrientation="portrait"
+            android:name="com.mineradio.app.crash.CrashActivity" />
+
+        <activity
+            android:name=".LandscapeWebActivity"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.SPICaMusic" />
+
+        <!-- ★★★ 插件市场：独立 Activity 加载 H5 商店页 (Cloudflare Workers)
+             默认竖屏，可在 H5 端切换 landscape
+             桥接: window.MR.installPluginFromBlob / openPluginMarket 调用原生安装 -->
+        <activity
+            android:name=".manager.PluginMarketActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.SPICaMusic" />
+
+        <service
+            android:name=".service.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name="com.mineradio.app.service.MusicPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_TYPE_SUBSYSTEM"
+                android:value="media_playback_keep_alive" />
+        </service>
+
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 壁纸服务：project_lw 移植的 LWService -->
+        <!-- ★ android:process=":wallpaper" 独立进程
+             原因：主进程被用户从后台划掉时，整个进程会被杀，包括 LWService。
+             LWService 死亡后系统会回退到 ImageWallpaper（静态壁纸）。
+             将 LWService 放到 :wallpaper 独立进程后，它被系统 WallpaperManagerService
+             绑定，主进程被杀时 :wallpaper 进程不会被杀，视频壁纸持续显示。 -->
+        <service
+            android:name=".wallpaper.LWService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/wallpaper_service_label"
+            android:process=":wallpaper"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/livewallpaper" />
+        </service>
+
+        <!-- MPKG 场景壁纸预览 Activity -->
+        <activity
+            android:name=".wallpaper.MpkgPreviewActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <!-- 壁纸保活前台服务（确保视频和HTML壁纸在后台持续运行，不被系统杀死） -->
+        <!-- ★ android:process=":wallpaper" 独立进程，与 LWService 同进程
+             这样主进程被杀时保活服务继续运行，维持 :wallpaper 进程存活 -->
+        <service
+            android:name=".wallpaper.WallpaperKeepAliveService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":wallpaper"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_TYPE_SUBSYSTEM"
+                android:value="wallpaper_keep_alive" />
+        </service>
+
+        <!-- ★★★ 桌面萌宠悬浮窗服务（使用 WindowManager 悬浮窗，不依赖系统壁纸设置） -->
+        <service
+            android:name=".wallpaper.PetFloatingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_TYPE_SUBSYSTEM"
+                android:value="pet_floating" />
+        </service>
+
+        <!-- 开机自启动接收器：重启手机后自动恢复壁纸服务 -->
+        <receiver
+            android:name=".wallpaper.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- ★ 移除 USER_PRESENT / SCREEN_ON 监听：
+                     原实现每次用户解锁屏幕/屏幕点亮时都会触发 BootReceiver，
+                     在壁纸反射失败时会拉起 MainActivity → LandscapeWebActivity，
+                     导致后台播放音乐时应用莫名其妙自动跳到前台。
+                     保留 BOOT_COMPLETED / LOCKED_BOOT_COMPLETED / MY_PACKAGE_REPLACED
+                     即可保证开机后壁纸服务正常恢复。 -->
+            </intent-filter>
+        </receiver>
+
+        <!-- ★★★ 壁纸刷新接收器：收到 ACTION_REFRESH 时拉起 KeepAlive 服务（多层防护）
+             即使 KeepAlive 服务被杀，发送 ACTION_REFRESH 广播也能重新拉起服务并触发壁纸恢复 -->
+        <receiver
+            android:name=".wallpaper.WallpaperReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.mineradio.wallpaper.ACTION_REFRESH" />
+                <action android:name="com.mineradio.wallpaper.ACTION_TEST" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ★★★ 第0层防护：系统壁纸变化监听接收器
+             当系统壁纸被切换走（ZUI 清理器、用户手动切换、其他壁纸应用抢占）时，
+             系统会立即发送 ACTION_WALLPAPER_CHANGED 广播，本接收器收到后立即触发恢复流程 -->
+        <receiver
+            android:name=".wallpaper.WallpaperChangeReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.WALLPAPER_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ★★★ 第7层防护：JobScheduler 持久化兜底服务
+             即使应用被杀、设备重启，已调度的 Job 仍会被系统保留并在合适时机重新执行 -->
+        <service
+            android:name=".wallpaper.WallpaperJobService"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- ★★★ 第9层防护：AlarmManager 唤醒接收器
+             解决 ZUI 清理后 "process is bad" 问题，多次重试启动服务 -->
+        <receiver
+            android:name=".wallpaper.WallpaperAlarmReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.mineradio.wallpaper.ACTION_WAKEUP" />
+            </intent-filter>
+        </receiver>
+
+        <profileable android:shell="true" tools:targetApi="q" />
+
+    </application>
+
+</manifest>

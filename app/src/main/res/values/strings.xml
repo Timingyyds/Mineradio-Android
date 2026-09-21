@@ -1,0 +1,614 @@
+<resources>
+  <string name="app_name">Mineradio</string>
+  <string name="action_settings">Settings</string>
+  <string name="play_all">Play All</string>
+  <string name="first_fragment_label">First Fragment</string>
+  <string name="second_fragment_label">Second Fragment</string>
+  <string name="next">Next</string>
+  <string name="previous">Previous</string>
+  <string name="quick_action">Quick Action</string>
+
+  <string name="play_action">Play Action</string>
+  <string name="play_list_header">Swipe down to go back to details</string>
+  <string name="playing">Now Playing</string>
+  <string name="queue">Playlist</string>
+  <string name="select_all">Select All</string>
+  <string name="select_none">Select None</string>
+  <string name="eq_preset_flat">Flat</string>
+  <string name="eq_preset_custom">Custom</string>
+  <string name="eq_preset_bass_boost">Bass Boost</string>
+  <string name="eq_preset_bass_reduce">Bass Reducer</string>
+  <string name="eq_preset_vocal_boost">Vocal Boost</string>
+  <string name="eq_preset_vocal_Reduce">Vocal Reducer</string>
+  <string name="dsp_replay_gain_title">ReplayGain</string>
+  <string name="dsp_replay_gain_track">Track Gain</string>
+  <string name="dsp_replay_gain_album">Album Gain</string>
+  <string name="dsp_replay_gain_off">Off</string>
+  <string name="dsp_dialog_frequency_response_title">Frequency Response</string>
+  <string name="dsp_replay_gain_hint_mode">Mode</string>
+  <string name="dsp_preamp">Preamp</string>
+  <string name="dsp_equalizer_title">Equalizer</string>
+  <string name="dsp_equalizer_hint_preset">Preset</string>
+  <string name="dsp_frequency_response_curve_title">Frequency Response Curve</string>
+  <string name="key_words">Key Words…</string>
+  <string name="add">Add</string>
+  <string name="delete">Delete</string>
+  <string name="add_to_list">add to playlist</string>
+  <string name="info">info</string>
+
+  <string name="permission_declaration">
+           <h1>SPICaMusic Permissions Usage Statement</h1>
+
+        <p>Welcome to SPICaMusic! To provide you with a complete music experience, we need you to grant the following permissions:</p>
+
+        <h2>Required Permissions Explained</h2>
+
+        <h3>1. Storage Space/Media File Access Permission (Required)</h3>
+        <ul>
+            <li><strong>Purpose:</strong> This permission is used to scan local audio files on your device to discover and add them to your music library, allowing you to play your favorite songs at any time.</li>
+            <li><strong>Our Commitment:</strong> SPICaMusic will only access audio files on your device (such as MP3, FLAC, WAV, etc.). We will not access, modify, or upload your private photos, videos, documents, or other non-music files.</li>
+        </ul>
+
+        <h3>2. Notification Permission (Recommended)</h3>
+        <ul>
+            <li><strong>Purpose:</strong> When you play music in the background, we need this permission to show you a persistent notification. This notification not only allows you to quickly view the currently playing song information but also provides convenient playback controls (such as play/pause, previous/next track).</li>
+            <li><strong>Your Choice:</strong> If you do not grant this permission, background playback control may be limited or may not be displayed in the notification bar.</li>
+        </ul>
+
+        <h3>3. Network Access Permission (Required)</h3>
+        <ul>
+            <li><strong>Purpose:</strong> To enrich your listening experience, SPICaMusic uses a network connection to fetch lyric information for songs and display them synchronously during playback.</li>
+            <li><strong>Our Commitment:</strong> We only use the network when you need to fetch lyrics and will not engage in unnecessary background network activity or upload your personal data.</li>
+        </ul>
+
+        <div class="privacy-commitment">
+            <h2>Privacy Protection Commitment</h2>
+            <p>SPICaMusic respects and protects your personal privacy. We solemnly promise:</p>
+            <ul>
+                <li>We will only use the permissions you grant within the scope of the functions declared above.</li>
+                <li>We will not collect, store, or share any sensitive information related to your personal identity.</li>
+                <li>We will not use your personal data for any commercial advertising or third-party sharing.</li>
+            </ul>
+        </div>
+
+        <p class="contact-info">
+            You can manage these permissions at any time in the system settings. If you have any questions about our permission usage or privacy policy, please contact us via [Your contact method, e.g., the "About" page in the app or a feedback email].
+        </p>
+
+        <p class="footer-text">
+            Thank you for your understanding and support! We hope SPICaMusic brings you an enjoyable music experience.
+        </p>
+  </string>
+  <string name="crash_log">Crash Log</string>
+  <string name="see_more">see more</string>
+  <string name="title_home">HOME</string>
+  <string name="create_playlist">create playlist</string>
+  <string name="more">More</string>
+  <string name="search_local_songs">Search Local Songs</string>
+  <string name="recently_played">Recently Played</string>
+  <string name="title_playlist">Playlist</string>
+  <string name="my_favorites">My Favorites</string>
+  <string name="recommendations">Recommendations</string>
+  <string name="no_recommendations">No Recommendations</string>
+  <string name="empty">Empty</string>
+  <string name="scan_local_music">Scan Local Music</string>
+  <string name="home_page_title">Home</string>
+  <string name="settings">Settings</string>
+  <string name="lrc_not_found">Lyrics Not Found</string>
+  <string name="lrc_apply_success">Lyrics Apply Success</string>
+  <string name="apply_lrc">Apply Lyrics</string>
+  <string name="rename">Rename</string>
+  <string name="create_in">Create at %s</string>
+  <string name="title_recommended">Recommendations</string>
+  <string name="recently_listen">Recently Listen</string>
+  <string name="search_all_music">search all music</string>
+  <string name="title_settings">Settings</string>
+  <string name="setting_about">About</string>
+  <string name="setting_faq">FAQ</string>
+  <string name="setting_eq">Sound Effects</string>
+  <string name="setting_ignore_music">Ignore Music</string>
+  <string name="setting_scanner">Scanner</string>
+  <string name="setting_light_mode">Light Mode</string>
+  <string name="setting_dark_mode">Dark Mode</string>
+  <string name="default_edittext_hint">Please input here …</string>
+  <string name="btn_sure">sure</string>
+  <string name="title_remove_from_ignore_list">Remove from ignore list</string>
+  <string name="sure_remove_from_ignore_list">Sure remove from ignore list？</string>
+  <string name="title_add_to_ignore_list">Move to ignore list</string>
+  <string name="start_scanner">Start Scanner</string>
+  <string name="stop_scanner">Stop Scanner</string>
+  <string name="is_scanner">Scanning</string>
+  <string name="tab_cover">Cover</string>
+  <string name="tab_lrc">Lyrics</string>
+  <string name="tab_info">Info</string>
+  <string name="title_lyrics_search">Lyrics Search</string>
+  <string name="song_displayname">Song Name</string>
+  <string name="song_artist">Artist</string>
+  <string name="song_album">Album</string>
+  <string name="song_duration">Duration</string>
+  <string name="search">Search</string>
+  <string name="hint_edit_song_name">please input song name</string>
+  <string name="hint_edit_song_artist">please input artist name</string>
+  <string name="now_playinglist">Now Playing List</string>
+  <string name="add_to_now_playing_list">Add To Now Playing List</string>
+  <string name="add_to_playlist">Add To Playlist</string>
+  <string name="remove_from_playlist">Remove From Playlist</string>
+  <string name="add_to_ignore_list">Add To Ignore List</string>
+  <string name="copy_success">Copy Success</string>
+  <string name="title_dialog_lrc_ui_setting">Lyrics UI Setting</string>
+  <string name="lrc_setting_font_size">Font Size %s</string>
+  <string name="lrc_setting_font_weight">Font Weight %s</string>
+  <string name="lrc_setting_change_lrc">Search Lyrics From Network</string>
+  <string name="lrc_setting_full_screen">Full Screen Lyrics</string>
+  <string name="swipe_up_to_view_current_play_list">swipe up to view the now playing list</string>
+  <string name="swipe_down_to_view_player_page">swipe down to view player page</string>
+  <string name="remove">remove</string>
+  <string name="add_new_song_to_playlist">Add New Song To Current Playlist</string>
+  <string name="play_all_songs">Play All</string>
+  <string name="replace_current_playlist">Replace Current Playlist</string>
+  <string name="add_to_current_playlist">Add to Current Playing List</string>
+  <string name="has_liked_current_song">LIKED</string>
+  <string name="has_not_liked_current_song">NOT LIKED</string>"
+  <string name="media_library_source_title">Media Library Source</string>
+  <string name="scan_instructions_title">Scan Instructions</string>
+  <string name="scan_instructions_message">Tap the button above to start scanning your device for music files.\n\n• Supported formats: MP3, FLAC, WAV, M4A, OGG, OPUS\n• Files shorter than 10 seconds are automatically filtered\n• The media library will be updated after scanning completes</string>
+  <string name="custom_folder_scan">Custom folder scan feature</string>
+  <string name="coming_soon">Coming soon</string>
+  <string name="extra_folders_title">Extra Scan Folders</string>
+  <string name="extra_folders_desc">Scan audio files in these folders that are not indexed by MediaStore</string>
+  <string name="ignore_folders_title">Ignore Folders</string>
+  <string name="ignore_folders_desc">Audio files in these folders will be skipped during all scans</string>
+  <string name="add_extra_folder">Add Folder</string>
+  <string name="add_ignore_folder">Add Ignore Folder</string>
+  <string name="no_extra_folders">No extra scan folders added</string>
+  <string name="no_ignore_folders">No ignore folders added</string>
+  <string name="folder_inaccessible">Permission revoked — tap to re-authorize</string>
+  <string name="reauthorize_folder">Re-authorize</string>
+  <string name="full_scan">Full Scan</string>
+  <string name="full_scan_desc">Scan MediaStore + extra folders</string>
+  <string name="remove_folder">Remove folder</string>
+  <string name="scan_media_library">Scan Media Library</string>
+  <string name="scan_all_music_files">Scan all music files on the device</string>
+  <string name="need_audio_permission_to_scan">Audio file access permission is required to scan music files</string>
+  <string name="grant_permission_and_scan">Grant permission and scan</string>
+  <string name="scanning">Scanning...</string>
+  <string name="scan_completed">Scan completed</string>
+  <string name="total_scanned">Total scanned</string>
+  <string name="new_added">New added</string>
+  <string name="updated">Updated</string>
+  <string name="removed">Removed</string>
+  <string name="songs_count_format">%d songs</string>
+  <string name="scan_failed">Scan failed</string>
+  <string name="cancel">Cancel</string>
+  <string name="retry">Retry</string>
+  <string name="no_playlists">No playlists</string>
+  <string name="create_first_playlist">Create your first playlist</string>
+  <string name="hint_input_playlist_name">Please input playlist name</string>
+  <string name="create">Create</string>
+  <string name="delete_playlist_title">Delete Playlist</string>
+  <string name="confirm_delete_playlist">Are you sure you want to delete playlist \"%1$s\"?</string>
+  <string name="artists_title">Artists</string>
+  <string name="artists_list">Artists list</string>
+  <string name="my_favorites_page">My Favorites</string>
+  <string name="folders_title">Folders</string>
+  <string name="folders_list">Folders list</string>
+  <string name="recently_added_title">Recently Added</string>
+  <string name="recently_added_songs">Recently added songs</string>
+  <string name="most_played_title">Most Played</string>
+  <string name="most_played_songs">Most played songs</string>
+  <string name="multi_select">Multi-select</string>
+  <string name="equalizer_10_band">10-band Equalizer</string>
+  <string name="db_value_format">%ddB</string>
+  <string name="reverb_spatial">Spatial Reverb</string>
+  <string name="reverb_spatial_desc">Simulates concert hall, church and other space effects</string>
+  <string name="reverb_intensity">Reverb Intensity</string>
+  <string name="percent_value_format">%d%%</string>
+  <string name="room_size">Room Size</string>
+  <string name="presets_title">Presets</string>
+  <string name="preset_pop">Pop</string>
+  <string name="preset_rock">Rock</string>
+  <string name="preset_classical">Classical</string>
+  <string name="preset_jazz">Jazz</string>
+  <string name="toggle_lyrics">Toggle Lyrics</string>
+  <string name="no_albums_found">No albums found</string>
+  <string name="choose_lyrics">Choose Lyrics</string>
+  <string name="lyrics_preview_instruction">Swipe left/right to preview and choose the best lyrics version</string>
+  <string name="lyrics_parse_failed">Lyrics parsing failed</string>
+  <string name="pager_format">%1$d/%2$d</string>
+  <string name="albums_title">Albums</string>
+  <string name="listening_stats">Listening Stats</string>
+  <string name="no_albums">No albums</string>
+  <string name="try_rescan_media_library">Try rescanning the media library</string>
+  <string name="quality_hi_res">HI-RES</string>
+  <string name="quality_320k">320K</string>
+  <string name="remove_songs_format">Remove %d songs</string>
+  <string name="playlist_empty">Playlist is empty</string>
+  <string name="playlist_empty_hint">Add some songs</string>
+  <string name="batch_delete">Delete selected</string>
+  <string name="kHz_format">%dkHz</string>
+  <string name="kbps_format">%dkbps</string>
+  <string name="lossless">Lossless</string>
+  <string name="high_quality">High quality</string>
+  <string name="visualization_requires_android13">Requires Android 13+\n to show 3D visualization</string>
+  <string name="waiting_to_play">Waiting to play</string>
+  <string name="play">Play</string>
+  <string name="view_all">View All</string>
+  <string name="play_recommendation">Play recommendations</string>
+  <string name="add_songs_to_playlist">Add songs to playlist</string>
+  <string name="add_songs">Add songs</string>
+  <string name="sort_songs">Sort songs</string>
+  <string name="done_sorting">Done</string>
+  <string name="drag_to_reorder">Drag to reorder</string>
+  <string name="sort_mode_limit_title">Playlist is too large</string>
+  <string name="sort_mode_limit_message">Sorting is currently supported for playlists with up to %d songs.</string>
+  <string name="playlist_detail_title">Playlist Details</string>
+  <string name="play_count_format">%d plays</string>
+
+  <!-- Navigation -->
+  <string name="nav_library">Media Library</string>
+
+  <!-- Common UI actions -->
+  <string name="confirm">Confirm</string>
+  <string name="close">Close</string>
+  <string name="back">Back</string>
+  <string name="refresh">Refresh</string>
+  <string name="hide">Hide</string>
+  <string name="collapse">Collapse</string>
+
+  <!-- Player controls -->
+  <string name="pause">Pause</string>
+  <string name="previous_track">Previous track</string>
+  <string name="next_track">Next track</string>
+  <string name="play_mode">Play Mode</string>
+  <string name="favorite">Favorite</string>
+  <string name="remove_from_favorites">Remove from Favorites</string>
+  <string name="add_to_queue">Add to Queue</string>
+  <string name="now_playing_indicator">Now Playing</string>
+  <string name="multi_select_count_format">%d selected</string>
+  <string name="playlist_count_format">Playlist (%d)</string>
+  <string name="jump_to_playing">Jump to playing</string>
+  <string name="clear_playlist">Clear playlist</string>
+
+  <!-- Metadata fallbacks -->
+  <string name="unknown_song">Unknown Song</string>
+  <string name="unknown_artist">Unknown Artist</string>
+  <string name="unknown_format">Unknown format</string>
+  <string name="cover_placeholder">Cover placeholder</string>
+
+  <!-- Audio info card -->
+  <string name="audio_info">Audio Info</string>
+  <string name="audio_format_label">Format</string>
+  <string name="sample_rate_label">Sample Rate</string>
+  <string name="bitrate_label">Bitrate</string>
+  <string name="mono">Mono</string>
+  <string name="stereo">Stereo</string>
+  <string name="channels_format">%d channels</string>
+  <string name="channel_count_label">Channels</string>
+
+  <!-- Album -->
+  <string name="album_details">Album Details</string>
+  <string name="album_year_songs_format">%1$s · %2$d songs</string>
+
+  <!-- Playlist save operations -->
+  <string name="save_as_playlist">Save as Playlist</string>
+  <string name="save_as_playlist_succcess">Save as Playlist Success</string>
+  <string name="saved_as_playlist_format">Saved as playlist \"%s\"</string>
+  <string name="save_failed">Save failed</string>
+
+  <!-- Song picker sheet -->
+  <string name="add_songs_title">Add Songs</string>
+  <string name="search_song_or_artist">Search song or artist</string>
+  <string name="songs_available_format">%d songs available</string>
+  <string name="songs_selected_format">%d songs selected</string>
+  <string name="deselect_all">Deselect All</string>
+  <string name="confirm_add">Confirm Add</string>
+  <string name="confirm_add_format">Confirm Add (%d)</string>
+
+  <!-- Lyrics toolbar -->
+  <string name="lyrics_tool">Lyrics Tool</string>
+  <string name="advance_half_second">Advance 0.5s</string>
+  <string name="delay_half_second">Delay 0.5s</string>
+
+  <!-- Scan -->
+  <string name="preparing_scan">Preparing scan…</string>
+
+  <!-- Settings screen sections -->
+  <string name="settings_appearance">Appearance</string>
+  <string name="settings_dark_mode_subtitle">Enable dark theme</string>
+  <string name="settings_playback">Playback</string>
+  <string name="settings_sound_effects_subtitle">Equalizer, reverb and other effects</string>
+  <string name="settings_keep_screen_on">Keep Screen On</string>
+  <string name="settings_keep_screen_on_subtitle">Keep screen on during playback</string>
+  <string name="settings_dynamic_spectrum">Dynamic Spectrum Background</string>
+  <string name="settings_dynamic_cover">Dynamic Cover</string>
+  <string name="settings_dynamic_cover_subtitle">Flip effect on back of player cover</string>
+  <string name="settings_progress_bar_style">Progress Bar Style</string>
+  <string name="progress_bar_style_dynamic_waveform">Dynamic Waveform</string>
+  <string name="progress_bar_style_time_domain_waveform">Time-domain Waveform</string>
+  <string name="settings_media_library">Media Library</string>
+  <string name="settings_media_library_source_subtitle">Manage music scan paths</string>
+
+  <!-- Most played time range chips -->
+  <string name="range_week">This Week</string>
+  <string name="range_year">This Year</string>
+  <string name="range_all_time">All Time</string>
+    <string name="audio_playback_attribution">\"This app plays audio\"</string>
+
+  <!-- Library Page -->
+  <string name="library_title">设置</string>
+  <string name="library_summary_playlists">%d playlists</string>
+  <string name="library_summary_scan_folders">%d scan folders</string>
+  <string name="library_summary_ignore_folders">%d ignore folders</string>
+  <string name="library_summary_this_week">This week %s</string>
+  <string name="scan_music">Scan Music</string>
+  <string name="tab_playlists">Playlists</string>
+  <string name="tab_folders">Folders</string>
+  <string name="my_playlists">My Playlists</string>
+  <string name="playlists_count_format">%d</string>
+  <string name="no_playlists_created">No playlists created</string>
+  <string name="create_first_playlist_hint">Click \"Create Playlist\" above to create your first playlist.</string>
+  <string name="extra_scan_folders">Extra Scan Folders</string>
+  <string name="no_extra_scan_folders">No extra scan folders</string>
+  <string name="add_extra_folder_hint">Click \"+\" to select folders. Audio files will be registered to the system media library.</string>
+  <string name="ignore_folders">Ignore Folders</string>
+  <string name="add_ignore_folder_hint">Click \"+\" to select folders. Audio files will be skipped during scan.</string>
+  <string name="add_folder">Add Folder</string>
+  <string name="weekly_listening_overview">Weekly Listening Overview</string>
+  <string name="no_stats_data">No stats data</string>
+  <string name="play_duration">Play Duration</string>
+  <string name="play_count">Play Count</string>
+  <string name="unique_songs">Unique Songs</string>
+  <string name="reauthorize">Re-authorize</string>
+  <string name="accessible">Accessible</string>
+  <string name="inaccessible">Inaccessible</string>
+  <string name="songs_count">%d songs</string>
+  <string name="hours_minutes">%dh %dm</string>
+  <string name="minutes">%dmin</string>
+  <string name="less_than_1_minute">Less than 1 min</string>
+  <string name="no_playlists_yet">No Playlists Yet</string>
+  <string name="library_no_ignore_folders">No Ignore Folders</string>
+
+  <!-- Music Page -->
+  <string name="music_page_title">歌单</string>
+  <string name="music_summary_format">%1$d songs · %2$d albums · %3$d artists</string>
+  <string name="music_tab_songs">Songs</string>
+  <string name="music_tab_albums">Albums</string>
+  <string name="music_tab_artists">Artists</string>
+  <string name="music_tab_songs_count">%d</string>
+  <string name="music_tab_albums_count">%d</string>
+  <string name="music_tab_artists_count">%d</string>
+
+  <!-- Finder Page -->
+  <string name="finder_title">首页</string>
+  <string name="finder_summary_format">%1$d frequent · %2$d favorites · %3$d playlists</string>
+  <string name="finder_search_title">Search Music</string>
+  <string name="finder_search_subtitle">Quick search by song, artist, or album</string>
+  <string name="finder_no_local_music_title">No local music yet</string>
+  <string name="finder_no_local_music_subtitle">Scan your device for songs to start your music journey</string>
+  <string name="finder_go_to_scan">Go to Scan</string>
+  <string name="finder_library_title">全部音乐</string>
+  <string name="finder_library_subtitle">浏览所有本地音乐文件</string>
+  <string name="finder_all_music_title">设置中心</string>
+  <string name="finder_all_music_subtitle">应用设置、音频、外观</string>
+  <string name="finder_settings_title">Settings</string>
+  <string name="finder_settings_subtitle">Theme, background, and playback preferences</string>
+  <string name="finder_frequent_title">Most Played</string>
+  <string name="finder_no_frequent_title">No frequently played songs</string>
+  <string name="finder_no_frequent_subtitle">Start playing music and your most-played songs will appear here.</string>
+  <string name="finder_no_favorites_title">No favorite songs</string>
+  <string name="finder_no_favorites_subtitle">Favorite songs from the player or song menu and they will appear here.</string>
+  <string name="finder_more">More</string>
+  <string name="favorites_title">Favorites</string>
+  <string name="favorites_subtitle_count">%d favorite songs</string>
+  <string name="favorites_play_all">Play all</string>
+  <string name="favorites_search_hint">Search favorites…</string>
+  <string name="favorites_empty_title">No favorites yet</string>
+  <string name="favorites_empty_subtitle">Tap the heart on any song to add it to your favorites.</string>
+  <string name="favorites_search_empty">No favorites match your search.</string>
+  <string name="finder_playlists_overview_title">Playlist Overview</string>
+  <string name="finder_no_playlists_subtitle">Create a playlist in the library and it will appear here.</string>
+
+  <!-- Crash screen -->
+  <string name="crash_app_crashed">App Crashed</string>
+  <string name="crash_share_log">Share Log</string>
+  <string name="crash_restart_app">Restart App</string>
+
+  <!-- Common actions -->
+  <string name="shuffle_play">Shuffle</string>
+  <string name="no_song_playing">No song playing</string>
+
+  <!-- Song menu -->
+  <string name="play_next">Play Next</string>
+  <string name="view_album">View Album</string>
+  <string name="view_artist">View Artist</string>
+  <string name="song_info_menu_title">Song Info</string>
+  <string name="song_info_menu_subtitle">File, album &amp; audio details</string>
+  <string name="add_to_playlist_subtitle_menu">Save to an existing or new playlist</string>
+  <string name="playlist_picker_subtitle">Select a playlist to save this song</string>
+  <string name="no_playlists_hint">Create a new playlist first, then add this song to it.</string>
+  <string name="tap_to_add_to_playlist">Tap to add to this playlist</string>
+  <string name="create_playlist_auto_add_subtitle">The current song will be added automatically</string>
+  <string name="playlist_name_placeholder">My Playlist</string>
+  <string name="playlist_name_supporting">Enter a recognizable name</string>
+  <string name="create_empty_only">Create empty playlist only</string>
+  <string name="create_and_add">Create and Add</string>
+
+  <!-- Song info dialog -->
+  <string name="song_info_dialog_title">Song Info</string>
+  <string name="info_file_path">File Path</string>
+  <string name="info_file_size">File Size</string>
+  <string name="info_file_format">File Format</string>
+
+  <!-- Scanner -->
+  <string name="scanner_hero_title">Let SPICa discover your music</string>
+  <string name="scanner_hero_subtitle">Only audio files on your device are read to build your local library.</string>
+  <string name="scanner_idle_title">Ready to organize your music universe</string>
+  <string name="scanner_idle_subtitle">Scans MediaStore and extra folders, auto-syncing new, updated, and removed songs.</string>
+  <string name="scanner_running_title">Capturing music signals</string>
+  <string name="scanner_running_progress_format">%1$d / %2$d songs</string>
+  <string name="scanner_preparing">Preparing scan queue…</string>
+  <string name="scanner_complete_title">Your library is refreshed</string>
+  <string name="scanner_complete_subtitle">Local media and extra directories synced. Head back to the library.</string>
+  <string name="scanner_error_title">Scan did not complete</string>
+  <string name="scanner_error_default">An unknown error occurred during the scan. Please try again.</string>
+  <string name="scanner_permission_denied_msg">Media permission denied. Please enable it in system settings.</string>
+  <string name="scanner_go_to_settings">Go to System Settings</string>
+  <string name="scanner_grant_permission">Grant Media Permission</string>
+  <string name="scanner_audio_files_chip">Audio Files</string>
+  <string name="scanner_extra_folders_chip">Extra Folders</string>
+  <string name="scanner_start">Start Smart Scan</string>
+  <string name="scanner_rescan">Rescan</string>
+  <string name="scanner_done">Done</string>
+  <string name="scanner_later">Later</string>
+  <string name="scanner_current_file_label">Current File</string>
+  <string name="scanner_waiting_file">Waiting for next audio file…</string>
+
+  <!-- Search -->
+  <string name="search_songs_albums_artists">Search songs, albums, artists</string>
+  <string name="clear_input">Clear</string>
+  <string name="search_your_music_title">Search your music</string>
+  <string name="search_your_music_subtitle">Enter a song name, album, or artist to find songs</string>
+  <string name="search_no_results_format">No results for \"%s\"</string>
+  <string name="search_try_different_keywords">Try different keywords, or check your spelling</string>
+
+  <!-- Playlist detail -->
+  <string name="search_in_playlist_hint">Search songs in playlist</string>
+  <string name="search_songs_artists_albums">Search songs, artists, or albums</string>
+  <string name="close_search_cd">Close search</string>
+  <string name="exit_multiselect_cd">Exit multi-select</string>
+  <string name="selected_songs_count_format">%d songs selected</string>
+  <string name="rename_playlist_dialog_title">Rename Playlist</string>
+  <string name="add_songs_from_library_hint">Select songs from library to add to playlist</string>
+  <string name="songs_count_to_add_format">%d songs selected</string>
+  <string name="will_add_songs_format">Will add %d songs</string>
+  <string name="select_songs_button">Select songs</string>
+  <string name="add_n_songs_format">Add %d songs</string>
+  <string name="confirm_delete_playlist_full">Are you sure you want to delete \"%1$s\"? This cannot be undone.</string>
+
+  <!-- Settings -->
+  <string name="settings_hero_title">Customize your music space</string>
+  <string name="settings_hero_subtitle">Theme, dynamic background and playback in one place</string>
+  <string name="settings_appearance_subtitle">Shape the visual atmosphere of the player</string>
+  <string name="settings_dark_mode_title">Dark Mode</string>
+  <string name="settings_dark_mode_toggle_subtitle">Toggle dark / light theme</string>
+  <string name="settings_playback_subtitle">Make the listening experience smoother</string>
+  <string name="settings_light_mode_label">Light Mode</string>
+
+  <!-- 壁纸功能 -->
+  <string name="wallpaper_section_title">壁纸</string>
+  <string name="wallpaper_section_subtitle">为应用或系统桌面设置壁纸</string>
+  <string name="wallpaper_service_label">Mineradio 动态壁纸</string>
+  <string name="wallpaper_app_background">应用背景壁纸</string>
+  <string name="wallpaper_app_background_subtitle">设置应用内显示的背景壁纸</string>
+  <string name="wallpaper_system_desktop">系统桌面壁纸</string>
+  <string name="wallpaper_system_desktop_subtitle">将壁纸设置为 Android 桌面背景</string>
+  <string name="wallpaper_library">壁纸库</string>
+  <string name="wallpaper_library_subtitle">管理已导入的壁纸</string>
+  <string name="wallpaper_import">导入壁纸</string>
+  <string name="wallpaper_import_video">从文件导入视频壁纸</string>
+  <string name="wallpaper_import_image">从文件导入图片壁纸</string>
+  <string name="wallpaper_import_html">从文件导入 HTML 壁纸</string>
+  <string name="wallpaper_add_web">添加网络壁纸</string>
+  <string name="wallpaper_clear">清除当前壁纸</string>
+  <string name="wallpaper_set_as_app_bg">设为应用背景</string>
+  <string name="wallpaper_set_as_system">设为系统桌面</string>
+  <string name="wallpaper_delete">删除壁纸</string>
+  <string name="wallpaper_empty">壁纸库为空</string>
+  <string name="wallpaper_empty_hint">点击\"导入壁纸\"添加本地文件或网络壁纸</string>
+  <string name="wallpaper_current_app_bg">当前应用背景：%s</string>
+  <string name="wallpaper_current_system">当前系统壁纸：%s</string>
+  <string name="wallpaper_none">无</string>
+  <string name="wallpaper_type_html">HTML 壁纸</string>
+  <string name="wallpaper_type_video">视频壁纸</string>
+  <string name="wallpaper_type_image">图片壁纸</string>
+  <string name="wallpaper_slide_enable">允许壁纸滑动偏移</string>
+  <string name="wallpaper_slide_subtitle">桌面滑动时壁纸跟随偏移</string>
+  <string name="wallpaper_need_activate_title">需要激活动态壁纸</string>
+  <string name="wallpaper_need_activate_msg">已选中该壁纸，请在系统设置中将其激活为动态壁纸。点击\"去设置\"跳转到壁纸选择页。</string>
+  <string name="wallpaper_go_settings">去设置</string>
+  <string name="wallpaper_set_success">壁纸设置成功</string>
+  <string name="wallpaper_set_failed">壁纸设置失败</string>
+  <string name="wallpaper_cleared">壁纸已清除</string>
+  <string name="wallpaper_input_url">输入网络壁纸 URL</string>
+  <string name="wallpaper_input_name">壁纸名称</string>
+  <string name="wallpaper_url_hint">https:// 或 file:///android_asset/...</string>
+  <string name="wallpaper_confirm">确定</string>
+  <string name="wallpaper_cancel">取消</string>
+
+  <!-- 桌面萌宠 -->
+  <string name="desktop_pet_section_title">桌面萌宠</string>
+  <string name="desktop_pet_section_subtitle">在桌面上显示一个会动的Q萌角色，可拖拽互动</string>
+  <string name="desktop_pet_enable">启用桌面萌宠</string>
+  <string name="desktop_pet_enable_subtitle">复用壁纸的保活与自启动机制，重启手机后自动恢复</string>
+  <string name="desktop_pet_enabled_toast">桌面萌宠已启用，将在系统桌面显示</string>
+  <string name="desktop_pet_disabled_toast">桌面萌宠已关闭</string>
+  <string name="desktop_pet_activate_msg">桌面萌宠需要在系统桌面激活为动态壁纸后才能显示，请在系统设置中将其激活。点击\"去设置\"跳转。</string>
+
+  <!-- Lyrics -->
+  <string name="no_lyrics">No lyrics</string>
+  <string name="seek_to_lyric_line">Seek to this line</string>
+
+  <!-- Playlist creator -->
+  <string name="playlist_name_label">Playlist Name</string>
+  <string name="playlist_name_default">My Playlist</string>
+  <string name="playlist_name_placeholder_hint">Give the playlist a name</string>
+  <string name="playlist_name_error_empty">Please enter a playlist name</string>
+  <string name="playlist_name_suggestions_label">Try these names</string>
+  <string name="create_playlist_title">Create Playlist</string>
+  <string name="playlist_suggestion_1">My Favorites</string>
+  <string name="playlist_suggestion_2">Commute</string>
+  <string name="playlist_suggestion_3">Workout</string>
+  <string name="playlist_suggestion_4">Late Night Radio</string>
+  <string name="playlist_suggestion_5">Study Focus</string>
+
+  <!-- Navigation tabs -->
+  <string name="nav_tab_home">首页</string>
+  <string name="nav_tab_playlist">歌单</string>
+  <string name="nav_tab_settings">设置</string>
+
+  <!-- About -->
+  <string name="settings_about">About</string>
+  <string name="settings_about_subtitle">Version, open-source notices, and privacy</string>
+  <string name="about_title">About</string>
+  <string name="about_app_tagline">A modern local music player built with Jetpack Compose &amp; Media3</string>
+  <string name="about_version_format">Version %1$s</string>
+  <string name="about_section_intro">Introduction</string>
+  <string name="about_intro_body">SPICa Music is a modern Android music player built on Media3 ExoPlayer, Jetpack Compose, and Koin. It plays your local audio in a wide range of high-quality formats (FLAC, ALAC, Opus, and more) and offers lyrics, an equalizer, spectrum visualization, playlists, and listening stats. Everything runs locally on your device — no account required.</string>
+  <string name="about_section_more">More</string>
+  <string name="about_open_source">Open-source licenses</string>
+  <string name="about_open_source_subtitle">Third-party libraries used in this app</string>
+  <string name="about_app_license">App license</string>
+  <string name="about_app_license_subtitle">Released under the MIT License</string>
+  <string name="about_privacy">Privacy policy</string>
+  <string name="about_privacy_subtitle">How this app handles your data</string>
+  <string name="about_project_home">Project homepage</string>
+  <string name="about_project_home_subtitle">View the source code on GitHub</string>
+  <string name="about_cannot_open_link">Could not open the link</string>
+
+  <!-- Open-source licenses page -->
+  <string name="licenses_title">Open-source licenses</string>
+  <string name="licenses_header">This app is made possible by the following open-source projects. Thanks to all their authors and contributors.</string>
+  <string name="licenses_count_format">%1$d libraries</string>
+
+  <!-- App license page -->
+  <string name="app_license_title">App license</string>
+
+  <!-- Privacy policy page -->
+  <string name="privacy_title">Privacy policy</string>
+  <string name="privacy_updated_format">Last updated: %1$s</string>
+  <string name="privacy_updated_value">June 2026</string>
+  <string name="privacy_intro">SPICa Music respects your privacy. This app is designed to work entirely on your device. This policy explains what data the app accesses and how it is used.</string>
+  <string name="privacy_section_data_title">Data we access</string>
+  <string name="privacy_section_data_body">• Audio files and media metadata on your device, used solely to scan and play your music library locally.\n• Playback history, favorites, playlists, and settings, stored only in the app’s local database and preferences on your device.\nThe app does not require an account and does not collect personal identifiers.</string>
+  <string name="privacy_section_network_title">Network usage</string>
+  <string name="privacy_section_network_body">The app accesses the network only when you actively search for lyrics online. The song title and artist you search for are sent to the lyrics provider to return matching results. No other data is transmitted. If you never search for lyrics, the app does not send your data over the network.</string>
+  <string name="privacy_section_storage_title">Data storage &amp; retention</string>
+  <string name="privacy_section_storage_body">All app data (library index, playlists, favorites, history, and settings) is stored locally on your device. Uninstalling the app removes this data. The app does not upload your data to any server.</string>
+  <string name="privacy_section_permissions_title">Permissions</string>
+  <string name="privacy_section_permissions_body">• Media/Audio access: to scan and play local music.\n• Notifications &amp; foreground service: to show playback controls and keep music playing in the background.\n• Network: only for online lyrics search.\n• Vibration &amp; wake lock: for playback-related feedback and stability.</string>
+  <string name="privacy_section_thirdparty_title">Third-party services</string>
+  <string name="privacy_section_thirdparty_body">Online lyrics are retrieved from a third-party lyrics provider only when you search. Please refer to that provider’s own terms for how it handles requests. The app integrates open-source libraries listed under Open-source licenses; they run on-device and do not collect your data through this app.</string>
+  <string name="privacy_section_contact_title">Contact</string>
+  <string name="privacy_section_contact_body">If you have any questions about this privacy policy, please open an issue on the project’s GitHub repository.</string>
+
+</resources>
