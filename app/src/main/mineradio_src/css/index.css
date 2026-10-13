@@ -314,6 +314,7 @@ html.desktop-shell-root body {
   --source-netease: #d95b67;
   --source-qq: #00F5D4;
   --source-qishui: #45d68f;
+  --source-bodian: #4fc3f7;
   --source-spotify: #1ed760;
   --source-local: #9db8cf
 }
@@ -2048,6 +2049,12 @@ body.empty-home-active.diy-mode #search-area:not(.has-results) #search-mode-tabs
   background: rgba(69, 214, 143, .075)
 }
 
+.tag-source.bodian {
+  color: #e0f4ff;
+  border-color: rgba(79, 195, 247, .30);
+  background: rgba(79, 195, 247, .075)
+}
+
 .tag-source.spotify {
   color: #d8ffe2;
   border-color: rgba(30, 215, 96, .34);
@@ -2064,6 +2071,10 @@ body.empty-home-active.diy-mode #search-area:not(.has-results) #search-mode-tabs
 
 .search-result.qishui-source:hover {
   background: rgba(69, 214, 143, .052)
+}
+
+.search-result.bodian-source:hover {
+  background: rgba(79, 195, 247, .052)
 }
 
 .search-result.spotify-source:hover {
@@ -4362,6 +4373,11 @@ body.desktop-shell.empty-home-active.controls-visible #empty-home {
 .account-source-dot.qishui {
   background: var(--source-qishui);
   color: var(--source-qishui)
+}
+
+.account-source-dot.bodian {
+  background: var(--source-bodian);
+  color: var(--source-bodian)
 }
 
 .account-source-dot.spotify {
@@ -9090,6 +9106,12 @@ body.login-guide-active #login-guide-canvas {
   color: #d7ffe5
 }
 
+.login-platform-tabs button.bodian.active,
+.user-platform-tabs button.bodian.active {
+  background: rgba(79, 195, 247, .14);
+  color: #e0f4ff
+}
+
 .login-platform-tabs button.spotify.active,
 .user-platform-tabs button.spotify.active {
   background: rgba(30, 215, 96, .14);
@@ -9100,6 +9122,7 @@ body.login-guide-active #login-guide-canvas {
 .login-node-providers.login-platform-tabs button.qq.active,
 .login-node-providers.login-platform-tabs button.kugou.active,
 .login-node-providers.login-platform-tabs button.qishui.active,
+.login-node-providers.login-platform-tabs button.bodian.active,
 .login-node-providers.login-platform-tabs button.spotify.active {
   background: linear-gradient(135deg, rgba(255, 255, 255, .064), rgba(var(--fc-accent-rgb), .026));
   color: rgba(255, 255, 255, .95)
@@ -9392,6 +9415,12 @@ body.login-guide-active #login-guide-canvas {
   border-color: rgba(69, 214, 143, .26);
   color: #d7ffe5;
   background: rgba(69, 214, 143, .08)
+}
+
+.account-provider-chip.bodian {
+  border-color: rgba(79, 195, 247, .26);
+  color: #e0f4ff;
+  background: rgba(79, 195, 247, .08)
 }
 
 .account-provider-chip.spotify {

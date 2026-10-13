@@ -13,6 +13,35 @@ function hideAIDepthChip() {
 function loadCoverFromUrl(directUrl, opts) {
   opts = opts || {};
   var preserveOnSwitch = !!(opts.trackSwitch || opts.seamlessCover || opts.seamlessTrackSwitch);
+  // ★ 内嵌封面快速通道（data:/blob:/mineradio-local）：直接 img 加载，不走代理与裁剪参数
+  var isInlineSrc = (typeof isInlineCoverSrc === 'function')
+    ? isInlineCoverSrc(directUrl)
+    : /^(data:image\/|blob:|mineradio-local:\/\/cover\/)/i.test(String(directUrl || ''));
+  if (directUrl && typeof directUrl === 'string' && isInlineSrc) {
+    var inlineImg = new Image();
+    inlineImg.decoding = 'async';
+    inlineImg.onload = function () {
+      if (!coverApplyStillCurrent(opts)) return;
+      var size = coverTextureSizeForResolution(fx.coverResolution);
+      var cv = document.createElement('canvas'); cv.width = cv.height = size;
+      var cx = cv.getContext('2d');
+      var iw = inlineImg.naturalWidth, ih = inlineImg.naturalHeight, s = Math.min(iw, ih);
+      cx.drawImage(inlineImg, (iw - s) / 2, (ih - s) / 2, s, s, 0, 0, size, size);
+      setAlbumBackground(directUrl);
+      applyCoverCanvas(cv, directUrl, Object.assign({}, opts, { coverKey: directUrl, coverSourceKind: 'url', coverSource: directUrl }));
+    };
+    inlineImg.onerror = function () {
+      if (!coverApplyStillCurrent(opts)) return;
+      if (preserveOnSwitch && uniforms.uHasCover.value > 0.5) return;
+      currentCoverSource = null;
+      uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
+      resetFloatColorsToIdle();
+      setAlbumBackground('');
+      setControlCoverSrc('');
+    };
+    inlineImg.src = directUrl;
+    return;
+  }
   if (!directUrl || typeof directUrl !== 'string' || (!/^https?:\/\//i.test(directUrl) && !/^mineradio-local:\/\/cover\//i.test(directUrl))) {
     if (!coverApplyStillCurrent(opts)) return;
     if (preserveOnSwitch && uniforms.uHasCover.value > 0.5) {

@@ -578,6 +578,9 @@ async function resolveAlbumGaplessPlaybackData(song) {
   if (playbackProvider === 'qishui') {
     return apiJson('/api/qishui/song/url?id=' + encodeURIComponent(song.id || song.providerSongId || '') + qqPlaybackEvidenceQuery(song) + qualityParam, { timeoutMs: 9000 });
   }
+  if (playbackProvider === 'bodian') {
+    return apiJson('/api/bodian/song/url?id=' + encodeURIComponent(song.id || song.mediaId || song.providerSongId || '') + qualityParam, { timeoutMs: 9000 });
+  }
   if (playbackProvider === 'spotify') {
     return apiJson('/api/spotify/song/url?id=' + encodeURIComponent(song.id || song.providerSongId || song.spotifyId || '') +
       '&spotifyId=' + encodeURIComponent(song.spotifyId || '') +
@@ -820,6 +823,12 @@ function applyLocalTrackLyricOnDemand(song, token) {
   }
   setOriginalLyricsState(withLyricFallback([]), false, 'fallback');
   applyPreferredLyricsForCurrent(true);
+  if (!song) return;
+  // ★ 无内嵌歌词 → 走 fetchLyric 在线匹配（folia 本地库同款：按歌名+歌手搜网易云歌词/封面）
+  if (typeof fetchLyric === 'function') {
+    fetchLyric(song, token, 0);
+    return;
+  }
   if (
     !song
     || !song.hasLyric
@@ -852,6 +861,14 @@ async function playLocalQueueSong(song, idx, token, firstVisualPlay, opts, resum
   currentLocalSong = song;
   playQueue[idx] = song;
   updateCustomCoverButton();
+  // ★ 本地歌曲内嵌封面（folia-rc 本地库同款）：导入时解析出的 blob 封面直接上屏
+  if (song.cover) {
+    setTimeout(function () {
+      if (token === trackSwitchToken && currentLocalSong && currentLocalSong.localKey === song.localKey) {
+        loadCoverFromUrl(songCoverSrc(song, 400), { deferHeavy: false, delay: 0, timeout: 700 });
+      }
+    }, 120);
+  }
   document.getElementById('trial-banner').classList.remove('show');
   if (!audio) { audio = new Audio(); audio.crossOrigin = 'anonymous'; }
   else {
@@ -1125,6 +1142,7 @@ async function playQueueAt(idx, opts) {
       var isQQPlayback = playbackProvider === 'qq';
       var isKugouPlayback = playbackProvider === 'kugou';
       var isQishuiPlayback = playbackProvider === 'qishui';
+      var isBodianPlayback = playbackProvider === 'bodian';
       var isSpotifyPlayback = playbackProvider === 'spotify';
       var requestedQuality = normalizePlaybackQualityForProvider(opts.qualityOverride || getProviderPlaybackQuality(playbackProvider), playbackProvider);
       if (playbackProvider === 'netease' && requestedQuality === 'jymaster' && !hasProviderSvip('netease', loginStatus)) requestedQuality = 'hires';
@@ -1154,6 +1172,8 @@ async function playQueueAt(idx, opts) {
           qualityParam, { timeoutMs: 9000 });
       } else if (isQishuiPlayback) {
         data = await apiJson('/api/qishui/song/url?id=' + encodeURIComponent(song.id || song.providerSongId || '') + qqPlaybackEvidenceQuery(song) + qualityParam, { timeoutMs: 9000 });
+      } else if (isBodianPlayback) {
+        data = await apiJson('/api/bodian/song/url?id=' + encodeURIComponent(song.id || song.mediaId || song.providerSongId || '') + qualityParam, { timeoutMs: 9000 });
       } else if (isSpotifyPlayback) {
         data = await apiJson('/api/spotify/song/url?id=' + encodeURIComponent(song.id || song.providerSongId || song.spotifyId || '') +
           '&spotifyId=' + encodeURIComponent(song.spotifyId || '') +

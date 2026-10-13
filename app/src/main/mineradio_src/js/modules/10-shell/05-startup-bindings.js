@@ -36,13 +36,14 @@ if (fx.floatLayer) createFloatLayer();
 if (fx.particleLyrics) createLyricsParticles();
 if (fx.backCover) createBackCoverLayer();
 initIdleGuideCanvas();
-var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus({ forceVip: true, reason: 'startup' }), refreshKugouLoginStatus(), refreshQishuiLoginStatus(), refreshSpotifyLoginStatus(), persistedLocalLibraryRestorePromise]);
+var startupLoginStatusPromise = Promise.all([refreshLoginStatus(), refreshQQLoginStatus({ forceVip: true, reason: 'startup' }), refreshKugouLoginStatus(), refreshQishuiLoginStatus(), refreshBodianLoginStatus(), refreshSpotifyLoginStatus(), persistedLocalLibraryRestorePromise]);
 // 启动自动播放不依赖登录状态查询结果(查询可能因本地 server 未就绪而延迟/失败);
 // 无快照时内部会走每日推荐等兜底, 避免偏好开启却不播放。
 queueStartupAutoplayAfterHomeReveal('startup');
 startQQLoginStatusAutoRefresh();
 startKugouLoginStatusAutoRefresh();
 startQishuiLoginStatusAutoRefresh();
+startBodianLoginStatusAutoRefresh();
 startSpotifyLoginStatusAutoRefresh();
 if (startupLoginStatusPromise && startupLoginStatusPromise.then) {
   startupLoginStatusPromise.then(function () {

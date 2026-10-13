@@ -13,6 +13,7 @@
   <script src="vendor/music-tempo.min.js"></script>
   <script src="vendor/gsap.min.js"></script>
   <script src="js/preload-mode.js"></script>
+  <script src="vendor/audio-metadata.js"></script>
   <!-- Capacitor 移动端适配层(桌面 Electron/浏览器下自动 no-op) -->
   <script src="js/capacitor-bridge.js"></script>
   <!-- ★ 统一 UI 自适应缩放系统：按设备屏幕尺寸/比例/像素密度计算全局 --ui-scale，
@@ -147,6 +148,7 @@
           <button id="search-mode-qq" type="button" onclick="setSearchMode('qq')" aria-selected="false">QQ</button>
           <button id="search-mode-kugou" type="button" onclick="setSearchMode('kugou')" aria-selected="false">KG</button>
           <button id="search-mode-qishui" type="button" onclick="setSearchMode('qishui')" aria-selected="false">QS</button>
+          <button id="search-mode-bodian" type="button" onclick="setSearchMode('bodian')" aria-selected="false">BD</button>
           <button id="search-mode-spotify" type="button" onclick="setSearchMode('spotify')" aria-selected="false">SP</button>
           <button id="search-mode-podcast" type="button" onclick="setSearchMode('podcast')"
             aria-selected="false">Podcast</button>
@@ -1453,12 +1455,12 @@
     </div>
 
     <input type="file" id="file-input"
-      accept=".mp3,.flac,.wav,.ogg,.m4a,.aac,.opus,audio/mpeg,audio/flac,audio/wav,audio/ogg,audio/mp4,audio/aac"
+      accept="audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.opus"
       style="display:none">
     <input type="file" id="cover-input" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
       style="display:none">
     <input type="file" id="folder-input"
-      accept=".mp3,.flac,.wav,.ogg,.m4a,.aac,.opus,audio/mpeg,audio/flac,audio/wav,audio/ogg,audio/mp4,audio/aac"
+      accept="audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.opus"
       webkitdirectory directory multiple style="display:none">
     <input type="file" id="lyric-font-input"
       accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2,application/font-woff,application/x-font-ttf,application/x-font-otf"
@@ -1522,6 +1524,8 @@
                 class="provider-logo">KG</span><b>酷狗音乐</b><small>官方窗口 / Cookie</small><span class="flow-port out" data-login-provider-output="kugou" title="拖到 MR 接入口"></span></button>
             <button id="login-provider-qishui" class="qishui workflow-node" type="button" data-login-provider="qishui" onclick="selectLoginProviderNode('qishui')"><span
                 class="provider-logo">QS</span><b>汽水音乐</b><small>官方扫码 / 抖音确认</small><span class="flow-port out" data-login-provider-output="qishui" title="拖到 MR 接入口"></span></button>
+            <button id="login-provider-bodian" class="bodian workflow-node" type="button" data-login-provider="bodian" onclick="selectLoginProviderNode('bodian')"><span
+                class="provider-logo">BD</span><b>波点音乐</b><small>官方扫码登录</small><span class="flow-port out" data-login-provider-output="bodian" title="拖到 MR 接入口"></span></button>
             <button id="login-provider-spotify" class="spotify workflow-node" type="button" data-login-provider="spotify" onclick="selectLoginProviderNode('spotify')"><span
                 class="provider-logo">SP</span><b>Spotify</b><small>官方 OAuth</small><span class="flow-port out" data-login-provider-output="spotify" title="拖到 MR 接入口"></span></button>
           </div>
@@ -1547,7 +1551,7 @@
             <div id="qr-shell" class="qr-shell">
               <img id="qr-img" src="" alt="">
               <button id="qq-web-login-card" class="qq-login-mark" type="button"
-                onclick="openProviderWebLogin()"><b>QQ</b><span>打开官方扫码窗口</span></button>
+                onclick="openProviderWebLogin()"><b>扫码</b><span>刷新二维码</span></button>
             </div>
             <div id="qq-cookie-panel" class="qq-cookie-panel">
               <textarea id="qq-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off"
@@ -1629,6 +1633,7 @@
           <button id="user-provider-qq" class="qq" type="button" onclick="setActiveAccountProvider('qq')">QQ 音乐</button>
           <button id="user-provider-kugou" class="kugou" type="button" onclick="setActiveAccountProvider('kugou')">酷狗音乐</button>
           <button id="user-provider-qishui" class="qishui" type="button" onclick="setActiveAccountProvider('qishui')">汽水音乐</button>
+          <button id="user-provider-bodian" class="bodian" type="button" onclick="setActiveAccountProvider('bodian')">波点音乐</button>
           <button id="user-provider-spotify" class="spotify" type="button" onclick="setActiveAccountProvider('spotify')">Spotify</button>
           <button id="user-provider-both" class="both" type="button" onclick="enableDualAccountView()">我两个都要</button>
         </div>
@@ -1637,6 +1642,7 @@
           <button id="account-add-qq" class="modal-btn" onclick="openProviderLogin('qq')">补登 QQ 音乐</button>
           <button id="account-add-kugou" class="modal-btn" onclick="openProviderLogin('kugou')">补登酷狗音乐</button>
           <button id="account-add-qishui" class="modal-btn" onclick="openProviderLogin('qishui')">登录汽水音乐</button>
+          <button id="account-add-bodian" class="modal-btn" onclick="openProviderLogin('bodian')">登录波点音乐</button>
           <button id="account-add-spotify" class="modal-btn" onclick="openProviderLogin('spotify')">连接 Spotify</button>
         </div>
         <div id="account-hint" class="account-hint">QQ 音乐真实登录暂未接入，当前先预览双平台账号交互。</div>

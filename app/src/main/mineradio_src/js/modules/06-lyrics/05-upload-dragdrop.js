@@ -41,6 +41,31 @@ function localSongFromAudioFile(file) {
     duration: 0
   });
 }
+// ★ 确保内嵌元数据解析器可用：App 启动早期 Node 未就绪时脚本可能 502，
+//   导入前动态补偿加载（folia-rc 本地库同款行为的兜底）
+function ensureAudioMetadataLoader() {
+  if (window.extractAudioMetadata) return Promise.resolve(true);
+  if (window.__audioMetadataLoadFailed) return Promise.resolve(false);
+  return new Promise(function (resolve) {
+    var attempt = 0;
+    function inject() {
+      attempt += 1;
+      var s = document.createElement('script');
+      s.src = 'js/vendor/audio-metadata.js?r=' + Date.now() + '-' + attempt;
+      s.onload = function () {
+        if (window.extractAudioMetadata) resolve(true);
+        else if (attempt < 2) setTimeout(inject, 1200);
+        else { window.__audioMetadataLoadFailed = true; resolve(false); }
+      };
+      s.onerror = function () {
+        if (attempt < 2) setTimeout(inject, 1500);
+        else { window.__audioMetadataLoadFailed = true; resolve(false); }
+      };
+      document.head.appendChild(s);
+    }
+    inject();
+  });
+}
 function canUsePersistentLocalMusicLibrary() {
   return !!(
     window.desktopWindow &&
@@ -311,7 +336,30 @@ async function handleFiles(files, opts) {
         console.warn('[LocalImport] persistent library unavailable, using this session only', e);
       }
     }
-    if (!songs || !songs.length) songs = audioFiles.map(localSongFromAudioFile);
+    if (!songs || !songs.length) {
+      // ★ MR Android(WebView+Kotlin) 无 desktopWindow，走降级路径。
+      //   folia-rc 本地库同款：导入时解析内嵌元数据（ID3v2/FLAC/MP4 封面+歌词+标题+歌手）
+      var canParseMeta = await ensureAudioMetadataLoader();
+      if (canParseMeta) {
+        showToast('正在读取 ' + audioFiles.length + ' 首本地音乐的标签与歌词…');
+        songs = await Promise.all(audioFiles.map(async function (f) {
+          var s = localSongFromAudioFile(f);
+          try {
+            var meta = await window.extractAudioMetadata(f);
+            if (meta) {
+              if (meta.title) { s.name = meta.title; s.title = meta.title; }
+              if (meta.artist) s.artist = meta.artist;
+              if (meta.album) s.album = meta.album;
+              if (meta.coverBlobUrl) { s.cover = meta.coverBlobUrl; s.hasEmbeddedCover = true; }
+              if (meta.lyricText) { s.lyric = meta.lyricText; s.hasEmbeddedLyrics = true; }
+            }
+          } catch (e) { console.warn('[LocalImport] metadata parse failed:', f && f.name, e); }
+          return s;
+        }));
+      } else {
+        songs = audioFiles.map(localSongFromAudioFile);
+      }
+    }
     importLocalAudioSongs(songs, { coverFile: songs.length === 1 ? imgFile : null, mode: opts.mode || '' });
     if (persistenceFailed) {
       setTimeout(function () { showToast('本地曲库保存失败：这些歌曲仅本次可用，重启后不会保留'); }, 260);

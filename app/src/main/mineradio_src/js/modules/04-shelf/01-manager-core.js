@@ -68,12 +68,12 @@ function makeShelfManager() {
     if (hasAnyPlatformLogin() && (userPlaylists.length || myPodcastCollections.length)) {
       var source = activePlaylists();
       var items = source.map(function (pl) {
-        var provider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kugou' ? 'kugou' : (pl.provider === 'qishui' ? 'qishui' : (pl.provider === 'spotify' ? 'spotify' : 'netease')));
-        var sourceLabel = provider === 'qq' ? 'QQ' : (provider === 'kugou' ? 'KG' : (provider === 'qishui' ? 'QS' : (provider === 'spotify' ? 'SP' : 'NE')));
+        var provider = pl.provider === 'qq' ? 'qq' : (pl.provider === 'kugou' ? 'kugou' : (pl.provider === 'qishui' ? 'qishui' : (pl.provider === 'bodian' ? 'bodian' : (pl.provider === 'spotify' ? 'spotify' : 'netease'))));
+        var sourceLabel = provider === 'qq' ? 'QQ' : (provider === 'kugou' ? 'KG' : (provider === 'qishui' ? 'QS' : (provider === 'bodian' ? 'BD' : (provider === 'spotify' ? 'SP' : 'NE'))));
         if (provider === 'spotify' && String(pl.id || '').indexOf('spotify:') !== 0) pl = Object.assign({}, pl, { id: 'spotify:' + pl.id });
         return {
           type: 'playlist', title: pl.name, sub: sourceLabel + ' · ' + (pl.trackCount || 0) + ' 首 · 播放 ' + compactCount(pl.playCount || 0),
-          cover: pl.cover || '', tag: (pl.shelfPane || pl.shelf_pane) === 'fav' || (!(pl.shelfPane || pl.shelf_pane) && pl.subscribed) ? '收藏歌单' : (provider === 'qishui' ? '汽水歌单' : '我的歌单'), playlistId: (provider === 'qq' ? 'qq:' : (provider === 'kugou' ? 'kugou:' : (provider === 'qishui' ? 'qishui:' : ''))) + pl.id, provider: provider
+          cover: pl.cover || '', tag: (pl.shelfPane || pl.shelf_pane) === 'fav' || (!(pl.shelfPane || pl.shelf_pane) && pl.subscribed) ? '收藏歌单' : (provider === 'qishui' ? '汽水歌单' : (provider === 'bodian' ? '波点歌单' : '我的歌单')), playlistId: (provider === 'qq' ? 'qq:' : (provider === 'kugou' ? 'kugou:' : (provider === 'qishui' ? 'qishui:' : (provider === 'bodian' ? 'bodian:' : '')))) + pl.id, provider: provider, bodianSource: provider === 'bodian' ? (pl.source || 4) : undefined
         };
       });
       if (shelfShowsPodcasts() && (shelfPane === 'mine' || shelfMergesCollections()) && myPodcastCollections.length) {

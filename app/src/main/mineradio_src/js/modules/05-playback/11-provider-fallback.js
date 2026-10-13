@@ -5,6 +5,7 @@ function playbackProviderLabel(song) {
   if (provider === 'qq') return 'QQ 音乐';
   if (provider === 'kugou') return '酷狗音乐';
   if (provider === 'qishui') return '汽水音乐';
+  if (provider === 'bodian') return '波点音乐';
   if (provider === 'spotify') return 'Spotify';
   return '网易云';
 }

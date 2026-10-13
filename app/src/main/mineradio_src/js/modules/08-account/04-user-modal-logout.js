@@ -1,5 +1,5 @@
 function loggedProviderCount() {
-  return ['netease', 'qq', 'kugou', 'qishui', 'spotify'].filter(function (key) { return hasPlatformLogin(key); }).length;
+  return ['netease', 'qq', 'kugou', 'qishui', 'bodian', 'spotify'].filter(function (key) { return hasPlatformLogin(key); }).length;
 }
 function updateUserModalUi() {
   activeAccountProvider = firstLoggedProvider();
@@ -33,6 +33,11 @@ function updateUserModalUi() {
       var kgVipLabel = kgVipLevel === 'svip' ? '酷狗 SVIP 会员' : (kgVipLevel === 'vip' ? '酷狗 VIP 会员' : '酷狗音乐会话');
       vipEl.textContent = 'UID: ' + ((st && st.userId) || '-') + '  /  ' + kgVipLabel;
       vipEl.style.color = hasProviderVip('kugou', st) ? 'rgba(86,224,255,0.86)' : 'rgba(86,224,255,0.58)';
+    } else if (activeAccountProvider === 'bodian') {
+      var bodianMode = st && st.loggedIn ? '波点音乐已扫码登录' : '波点音乐未登录';
+      var bodianSync = st && st.loggedIn ? '可同步歌单并按账号权益播放' : '请使用波点音乐 App 扫码';
+      vipEl.textContent = bodianMode + '  /  ' + bodianSync;
+      vipEl.style.color = 'rgba(79,195,247,0.78)';
     } else if (activeAccountProvider === 'qishui') {
       var qishuiMode = st && st.webSession ? '汽水音乐已扫码登录' : '汽水音乐未登录';
       var qishuiSync = st && st.webSession ? '可同步我的喜欢、歌单并按账号权益播放' : '请使用抖音 App 扫码';
@@ -63,7 +68,8 @@ function updateUserModalUi() {
     activeAccountProvider === 'qq' ? '退出 QQ 音乐' :
     (activeAccountProvider === 'kugou' ? '退出酷狗音乐' :
     (activeAccountProvider === 'qishui' ? '清除汽水登录态' :
-    (activeAccountProvider === 'spotify' ? '退出 Spotify' : '退出网易云')));
+    (activeAccountProvider === 'bodian' ? '退出波点音乐' :
+    (activeAccountProvider === 'spotify' ? '退出 Spotify' : '退出网易云'))));
   if (hint) hint.textContent = dualAccountMode
     ? '右上角已切换为多平台并排展示。'
     : '可切换右上角展示的平台；“我两个都要”会并排显示当前已登录的平台。';
@@ -80,7 +86,7 @@ function showUserModal() {
 }
 function closeUserModal() { closeGsapModal(document.getElementById('user-modal')); }
 function setActiveAccountProvider(provider) {
-  provider = provider === 'qq' ? 'qq' : (provider === 'kugou' ? 'kugou' : (provider === 'qishui' ? 'qishui' : (provider === 'spotify' ? 'spotify' : 'netease')));
+  provider = provider === 'qq' ? 'qq' : (provider === 'kugou' ? 'kugou' : (provider === 'qishui' ? 'qishui' : (provider === 'bodian' ? 'bodian' : (provider === 'spotify' ? 'spotify' : 'netease'))));
   if (!hasPlatformLogin(provider)) {
     openProviderLogin(provider);
     return;
@@ -104,7 +110,7 @@ function requestDualLoginMode() {
   enableDualAccountView();
 }
 function openProviderLogin(provider) {
-  provider = provider === 'qq' ? 'qq' : (provider === 'kugou' ? 'kugou' : (provider === 'qishui' ? 'qishui' : (provider === 'spotify' ? 'spotify' : 'netease')));
+  provider = provider === 'qq' ? 'qq' : (provider === 'kugou' ? 'kugou' : (provider === 'qishui' ? 'qishui' : (provider === 'bodian' ? 'bodian' : (provider === 'spotify' ? 'spotify' : 'netease'))));
   closeUserModal();
   loginProvider = provider;
   showLoginModal({ provider: provider });
@@ -190,6 +196,7 @@ async function logoutAllAccountsAndResetEasterEgg() {
       apiJson('/api/qq/logout'),
       apiJson('/api/kugou/logout'),
       apiJson('/api/qishui/logout'),
+      apiJson('/api/bodian/logout'),
       apiJson('/api/spotify/logout')
     ]);
     var result = await requestLoginEasterEggReplayReset();
@@ -243,6 +250,21 @@ async function logoutActiveAccount() {
     if (hasAnyPlatformLogin()) updateUserModalUi();
     else closeUserModal();
     showToast('已退出 Spotify');
+    return;
+  }
+  if (activeAccountProvider === 'bodian') {
+    try { await apiJson('/api/bodian/logout'); } catch (e) { }
+    bodianLoginStatus = { provider: 'bodian', loggedIn: false, preview: false, nickname: '波点音乐', userId: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, playbackKeyReady: false };
+    bodianPlaylists = [];
+    userPlaylists = userPlaylists.filter(function (pl) { return pl.provider !== 'bodian'; });
+    playlistCatalogRevision += 1;
+    dualAccountMode = false;
+    activeAccountProvider = firstLoggedProvider();
+    renderUserBtn();
+    safeShelfRebuild('bodian-logout');
+    if (hasAnyPlatformLogin()) updateUserModalUi();
+    else closeUserModal();
+    showToast('已退出波点音乐');
     return;
   }
   if (activeAccountProvider === 'qishui') {

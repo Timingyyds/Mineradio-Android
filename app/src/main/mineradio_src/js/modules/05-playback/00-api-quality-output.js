@@ -31,6 +31,7 @@ function normalizePlaybackProvider(provider) {
   if (provider === 'qq') return 'qq';
   if (provider === 'kugou') return 'kugou';
   if (provider === 'qishui') return 'qishui';
+  if (provider === 'bodian') return 'bodian';
   if (provider === 'spotify') return 'spotify';
   return 'netease';
 }

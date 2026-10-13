@@ -83,12 +83,14 @@ const {
   handleKugouLikeToggle,
   handleKugouPlaylistAddSong,
   getKugouLoginInfo,
+  fetchKugouLoginByToken,
   normalizeKugouCookieInput,
   clearKugouSessionCaches,
   kugouCookieHasPlayback,
   extractKugouAuth,
   kugouAudioReferer,
 } = require('./kugou-api');
+const bodianApi = require('./bodian-api');
 const {
   getQishuiStatus,
   handleQishuiStatus,
@@ -111,6 +113,13 @@ const {
   handleQishuiSongUrl,
 } = require('./qishui-api');
 const qishuiQrLogin = require('./qishui-qr-login');
+const QRCode = require('qrcode');
+const {
+  qqGetLoginQr,
+  qqCheckLoginQr,
+  kgGetLoginQrKey,
+  kgCheckLoginQr,
+} = require('./qr-login-providers');
 const {
   getSpotifyConfig,
   clearSpotifyToken,
@@ -154,6 +163,8 @@ const DEFAULT_COOKIE_FILE = path.join(__dirname, '.cookie');
 const DEFAULT_QQ_COOKIE_FILE = path.join(__dirname, '.qq-cookie');
 const DEFAULT_KUGOU_COOKIE_FILE = path.join(__dirname, '.kugou-cookie');
 const DEFAULT_QISHUI_COOKIE_FILE = path.join(__dirname, '.qishui-cookie');
+const DEFAULT_BODIAN_SESSION_FILE = process.env.BODIAN_SESSION_FILE || path.join(__dirname, '.bodian-session.json');
+bodianApi.setBodianSessionFile(DEFAULT_BODIAN_SESSION_FILE);
 const BEATMAP_CACHE_DIR = process.env.MINERADIO_BEAT_CACHE_DIR || 'D:\\MineradioCache\\beatmaps';
 // Android 平台检测:无 C/D 盘概念,跳过 Windows 盘符检查
 const IS_ANDROID_PLATFORM = typeof process !== 'undefined' && process.platform === 'android';
@@ -1424,6 +1435,8 @@ const NETEASE_SOURCE_MATCH_POSITIVE_TTL_MS = 12 * 60 * 60 * 1000;
 const NETEASE_SOURCE_MATCH_NEGATIVE_TTL_MS = 5 * 60 * 1000;
 const NETEASE_SOURCE_MATCH_MAX_CANDIDATES = 4;
 const neteaseSourceMatchCache = new Map();
+// 本地歌曲在线匹配缓存（歌名|歌手 → 歌词/封面）
+const localMatchCache = new Map();
 
 function neteaseSourceMatchText(value) {
   return String(value || '').normalize('NFKC').toLowerCase()
@@ -3724,6 +3737,60 @@ async function handleQQSongUrl(mid, mediaMid, qualityPreference, playbackHints) 
       requestedQuality,
     };
   }
+  // ---- 游客试听兜底：非会员/无音源时，以游客身份请求 128k vkey ----
+  // QQ 对 VIP 歌常会返回试听片段（文件本身是试听版），前端会显示"仅播放试听片段"横幅。
+  if (!playableUrl && (hasQQPlaybackSession || !musicKey)) {
+    try {
+      const m500 = 'M500' + (fileMediaMid || songmid) + '.mp3';
+      const guestJson = await qqMusicRequest({
+        comm: { uin: '0', format: 'json', ct: 24, cv: 0 },
+        req_0: {
+          module: 'vkey.GetVkeyServer',
+          method: 'CgiGetVkey',
+          param: {
+            guid,
+            songmid: [songmid],
+            songtype: [0],
+            uin: '0',
+            loginflag: 1,
+            platform: '20',
+            filename: [m500],
+          },
+        },
+      }, { cookie: false, timeoutMs: QQ_VKEY_REQUEST_TIMEOUT_MS });
+      const gData = guestJson && guestJson.req_0 && guestJson.req_0.data;
+      const gInfos = (gData && Array.isArray(gData.midurlinfo)) ? gData.midurlinfo.filter(item => item && item.purl) : [];
+      const gSips = (gData && Array.isArray(gData.sip) && gData.sip.length ? gData.sip : ['https://ws.stream.qqmusic.qq.com/']).filter(Boolean);
+      for (const gInfo of gInfos) {
+        for (const gSip of gSips) {
+          const remainingMs = probeDeadline - Date.now();
+          if (remainingMs < 300) break;
+          const gUrl = String(gSip || '') + String(gInfo.purl || '');
+          const gProbe = await probeQQAudioUrl(gUrl, Math.min(QQ_AUDIO_PROBE_ATTEMPT_MS, remainingMs));
+          if (gProbe.ok) {
+            return {
+              provider: 'qq',
+              url: gUrl,
+              trial: true,
+              playable: true,
+              playbackReady: true,
+              loggedIn: hasQQPlaybackSession,
+              playbackKeyReady: !!(uin && playbackKey),
+              userId: hasQQPlaybackSession ? uin : '',
+              vipRequired: memberTrackHint,
+              level: 'standard',
+              quality: '标准(试听)',
+              filename: gInfo.filename || m500,
+              message: '非会员账号播放试听片段',
+              requestedQuality,
+            };
+          }
+        }
+        if (probeDeadline - Date.now() < 300) break;
+      }
+    } catch (_) {}
+  }
+
   const restriction = classifyQQPlaybackRestriction(info, {
     hasSession: !!(uin && musicKey),
     hasPlaybackKey: !!(uin && playbackKey),
@@ -5920,6 +5987,259 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ------------------------------------------------------------------
+  // 波点音乐（kuwo 波点，uid/token 会话，扫码登录）
+  // ------------------------------------------------------------------
+  if (pn === '/api/local/match') {
+    // ★ 本地歌曲在线匹配（folia 本地库同款，多平台按序兜底）：
+    //   按歌名+歌手在各已登录平台依次搜索（网易云→QQ→酷狗→波点），先命中先用
+    try {
+      const rawName = String(url.searchParams.get('name') || '').trim();
+      const rawArtist = String(url.searchParams.get('artist') || '').trim();
+      const durationMs = Number(url.searchParams.get('duration')) || 0;
+      if (!rawName && !rawArtist) { sendJSON(res, { ok: false, message: '缺少歌名' }); return; }
+      const normName = neteaseSourceMatchText(rawName);
+      const normArtist = neteaseSourceMatchText(rawArtist);
+      const key = neteaseSourceMatchText(rawName) + '|' + neteaseSourceMatchText(rawArtist);
+      const cached = localMatchCache.get(key);
+      if (cached && Date.now() - cached.at < 24 * 60 * 60 * 1000) { sendJSON(res, cached.payload); return; }
+      // 各平台 song 结构归一
+      function pickArtistText(s) {
+        if (Array.isArray(s.artists || s.singer || s.artistList)) {
+          return (s.artists || s.singer || s.artistList).map(a => (a && (a.name || a)) || '').filter(Boolean).join(' / ');
+        }
+        return String(s.artist || s.singer || '');
+      }
+      function scoreSong(s) {
+        const sName = neteaseSourceMatchText(s.name || '');
+        const sArtists = neteaseSourceMatchText(pickArtistText(s));
+        let score = 0;
+        if (normName && sName) {
+          if (sName === normName) score += 2;
+          else if (sName.indexOf(normName) >= 0 || normName.indexOf(sName) >= 0) score += 1;
+        }
+        if (normArtist && sArtists) {
+          if (sArtists === normArtist || sArtists.indexOf(normArtist) >= 0 || normArtist.indexOf(sArtists) >= 0) score += 1;
+        }
+        const sDur = Number(s.duration || s.interval || 0);
+        if (durationMs > 0 && sDur > 0) {
+          let sMs = sDur;
+          if (sMs > 0 && sMs < 10000) sMs *= 1000;
+          if (Math.abs(sMs - durationMs) < 8000) score += 1;
+        }
+        return score;
+      }
+      async function searchOne(fn, ...args) {
+        try { return await fn(...args) || []; } catch (e) { console.warn('[LocalMatch] search failed:', e.message); return []; }
+      }
+      const platforms = [
+        {
+          key: 'netease',
+          search: () => searchOne(handleSearch, [rawName, rawArtist].filter(Boolean).join(' '), 6),
+          pick: s => ({ id: s.id, name: s.name, artist: pickArtistText(s), cover: s.cover || (s.album && s.album.picUrl) || '' }),
+          lyric: async hit => {
+            let body = {};
+            try {
+              if (typeof lyric_new === 'function') {
+                const nr = await lyric_new({ id: hit.id, cookie: userCookie, timestamp: Date.now() });
+                body = nr.body || {};
+              }
+            } catch (_) {}
+            if (!lyricBodyHasPrimary(body)) {
+              try {
+                const r = await lyric({ id: hit.id, cookie: userCookie, timestamp: Date.now() });
+                body = mergeLyricBodies(body, r.body || {});
+              } catch (_) {}
+            }
+            return {
+              lyric: (body.lrc && body.lrc.lyric) || '',
+              yrc: (body.yrc && body.yrc.lyric) || '',
+              tlyric: (body.tlyric && body.tlyric.lyric) || '',
+            };
+          },
+        },
+        {
+          key: 'qq',
+          search: () => searchOne(handleQQSearch, [rawName, rawArtist].filter(Boolean).join(' '), 6),
+          pick: s => ({ id: s.mid || s.id, name: s.name, artist: pickArtistText(s), cover: s.cover || (s.album && s.album.picUrl) || (s.albumMid ? 'https://y.gtimg.cn/music/photo_new/T002R500x500M000' + s.albumMid + '.jpg' : '') }),
+          lyric: async hit => {
+            const data = await handleQQLyric(hit.id, '');
+            return { lyric: (data && data.lyric) || '', tlyric: (data && data.tlyric) || '' };
+          },
+        },
+        {
+          key: 'kugou',
+          search: () => searchOne(handleKugouSearch, [rawName, rawArtist].filter(Boolean).join(' '), 6, kugouCookie),
+          pick: s => ({ id: s.hash || s.id, albumAudioId: s.albumAudioId || s.album_audio_id || '', name: s.name, artist: pickArtistText(s), cover: s.cover || '' }),
+          lyric: async hit => {
+            const data = await handleKugouLyric(hit.id, hit.albumAudioId || '', String(hit.duration || ''));
+            return { lyric: (data && data.lyric) || '', tlyric: (data && data.tlyric) || '' };
+          },
+        },
+        {
+          key: 'bodian',
+          search: () => searchOne(bodianApi.bodianSearch, [rawName, rawArtist].filter(Boolean).join(' '), 6),
+          pick: s => ({ id: s.id || s.mediaId, name: s.name, artist: pickArtistText(s), cover: s.cover || s.pic || '' }),
+          lyric: async hit => {
+            const data = await bodianApi.bodianLyric(hit.id);
+            return { lyric: (data && data.lyric) || '' };
+          },
+        },
+      ];
+      let payload = null;
+      for (const platform of platforms) {
+        const songs = await platform.search();
+        if (!songs.length) continue;
+        let best = null;
+        for (const s of songs) {
+          const score = scoreSong(s);
+          if (!best || score > best.score) best = { score, song: s };
+          if (score >= 4) break;
+        }
+        const hitScore = best ? best.score : 0;
+        if (!best || hitScore < 2) continue; // 至少歌名命中才算
+        const picked = platform.pick(best.song);
+        picked.duration = Number(best.song.duration || best.song.interval || 0);
+        let lyricData = {};
+        try { lyricData = await platform.lyric(picked) || {}; } catch (e) { console.warn('[LocalMatch] lyric failed:', platform.key, e.message); }
+        const lyricText = lyricData.lyric || '';
+        if (!lyricText) continue; // 该平台没歌词，试下一个
+        payload = {
+          ok: true,
+          platform: platform.key,
+          songId: picked.id,
+          matchedName: picked.name || '',
+          matchedArtist: picked.artist || '',
+          cover: picked.cover || '',
+          duration: picked.duration || 0,
+          lyric: lyricText,
+          yrc: lyricData.yrc || '',
+          tlyric: lyricData.tlyric || '',
+        };
+        break;
+      }
+      if (!payload) payload = { ok: false, message: '所有平台均未匹配到歌词' };
+      else localMatchCache.set(key, { at: Date.now(), payload });
+      sendJSON(res, payload);
+    } catch (err) {
+      console.error('[LocalMatch]', err);
+      sendJSON(res, { ok: false, error: 'LOCAL_MATCH_FAILED', message: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/login/status') {
+    try {
+      sendJSON(res, await bodianApi.bodianLoginStatus());
+    } catch (err) {
+      console.error('[BodianLoginStatus]', err);
+      sendJSON(res, { provider: 'bodian', loggedIn: false, error: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/logout') {
+    bodianApi.clearBodianSession();
+    sendJSON(res, { provider: 'bodian', loggedIn: false, ok: true });
+    return;
+  }
+
+  if (pn === '/api/bodian/login/qr/key') {
+    try {
+      const key = await bodianApi.bodianLoginQrKey();
+      const qrUrl = bodianApi.bodianLoginQrUrl(key.key);
+      let qrimg = '';
+      try { qrimg = await QRCode.toDataURL(qrUrl, { margin: 2, width: 320 }); } catch (_) {}
+      sendJSON(res, { provider: 'bodian', ok: true, key: key.key, url: qrUrl, qrimg, message: '请使用波点音乐 App 扫码' });
+    } catch (err) {
+      console.error('[BodianLoginQrKey]', err);
+      sendJSON(res, { provider: 'bodian', ok: false, error: 'BODIAN_QR_KEY_FAILED', message: err.message }, 502);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/login/qr/check') {
+    try {
+      const key = String(url.searchParams.get('key') || '').trim();
+      const result = await bodianApi.bodianLoginQrCheck(key);
+      const statusToCode = { expired: 800, wait: 801, scanned: 802, confirmed: 803 };
+      sendJSON(res, {
+        provider: 'bodian',
+        code: statusToCode[result.status] != null ? statusToCode[result.status] : 801,
+        status: result.status,
+        loggedIn: result.status === 'confirmed',
+        nickname: result.nickname || '',
+        avatar: result.avatar || '',
+        message: result.message || '',
+      });
+    } catch (err) {
+      console.error('[BodianLoginQrCheck]', err);
+      sendJSON(res, { provider: 'bodian', code: 801, status: 'wait', loggedIn: false, error: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/search') {
+    try {
+      const keyword = String(url.searchParams.get('keyword') || url.searchParams.get('q') || '').trim();
+      const limit = Number(url.searchParams.get('limit')) || 30;
+      const offset = Number(url.searchParams.get('offset')) || 0;
+      sendJSON(res, await bodianApi.bodianSearch(keyword, limit, offset));
+    } catch (err) {
+      console.error('[BodianSearch]', err);
+      sendJSON(res, { provider: 'bodian', songs: [], error: err.code || 'BODIAN_SEARCH_FAILED', message: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/song/url') {
+    try {
+      const id = String(url.searchParams.get('id') || url.searchParams.get('musicId') || '').trim();
+      const quality = String(url.searchParams.get('quality') || 'high').trim();
+      sendJSON(res, await bodianApi.bodianSongUrl(id, quality));
+    } catch (err) {
+      console.error('[BodianSongUrl]', err);
+      sendJSON(res, { provider: 'bodian', url: '', playable: false, error: err.code || 'BODIAN_URL_FAILED', message: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/lyric') {
+    try {
+      const id = String(url.searchParams.get('id') || '').trim();
+      sendJSON(res, await bodianApi.bodianLyric(id));
+    } catch (err) {
+      console.error('[BodianLyric]', err);
+      sendJSON(res, { provider: 'bodian', lyric: '', error: err.code || 'BODIAN_LYRIC_FAILED', message: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/user/playlists') {
+    try {
+      sendJSON(res, await bodianApi.bodianUserPlaylists());
+    } catch (err) {
+      console.error('[BodianUserPlaylists]', err);
+      const loggedIn = !!(err && err.code !== 'auth-required');
+      sendJSON(res, { provider: 'bodian', loggedIn, playlists: [], error: err.code || err.message, message: err.message }, 200);
+    }
+    return;
+  }
+
+  if (pn === '/api/bodian/playlist/tracks') {
+    try {
+      const id = String(url.searchParams.get('id') || '').trim();
+      const limit = Number(url.searchParams.get('limit')) || 50;
+      const offset = Number(url.searchParams.get('offset')) || 0;
+      const source = Number(url.searchParams.get('source')) || 0;
+      sendJSON(res, await bodianApi.bodianPlaylistTracks(id, limit, offset, source));
+    } catch (err) {
+      console.error('[BodianPlaylistTracks]', err);
+      sendJSON(res, { provider: 'bodian', tracks: [], total: 0, error: err.code || 'BODIAN_TRACKS_FAILED', message: err.message }, 200);
+    }
+    return;
+  }
+
   if (pn === '/api/kugou/playlist/tracks') {
     try {
       const id = url.searchParams.get('id') || url.searchParams.get('global_collection_id') || '';
@@ -6064,6 +6384,138 @@ const server = http.createServer(async (req, res) => {
   if (pn === '/api/qq/logout') {
     saveQQCookie('');
     sendJSON(res, { provider: 'qq', ok: true, loggedIn: false });
+    return;
+  }
+
+  // ------------------------------------------------------------------
+  // 通用二维码出图（qrcode 包，本地生成 dataURL）
+  // ------------------------------------------------------------------
+  if (pn === '/api/qrcode') {
+    try {
+      const text = String(url.searchParams.get('text') || '').trim();
+      if (!text) { sendJSON(res, { error: 'MISSING_TEXT', message: '缺少 text 参数' }, 400); return; }
+      const img = await QRCode.toDataURL(text, { margin: 2, width: 320 });
+      sendJSON(res, { img });
+    } catch (err) {
+      sendJSON(res, { error: 'QRCODE_FAILED', message: err.message }, 500);
+    }
+    return;
+  }
+
+  // ------------------------------------------------------------------
+  // QQ 音乐内置扫码登录（直连 ptlogin 协议，移植自 folia）
+  // ------------------------------------------------------------------
+  if (pn === '/api/qq/login/qr/key') {
+    try {
+      const qr = await qqGetLoginQr();
+      sendJSON(res, { provider: 'qq', ok: true, img: qr.img, qrsig: qr.qrsig, ptqrtoken: qr.ptqrtoken, message: '请使用手机 QQ 扫码' });
+    } catch (err) {
+      console.error('[QQLoginQrKey]', err);
+      sendJSON(res, { provider: 'qq', ok: false, error: 'QQ_QR_KEY_FAILED', message: err.message }, 502);
+    }
+    return;
+  }
+
+  if (pn === '/api/qq/login/qr/check') {
+    try {
+      const qrsig = String(url.searchParams.get('qrsig') || url.searchParams.get('key') || '').trim();
+      const ptqrtoken = String(url.searchParams.get('ptqrtoken') || '').trim();
+      const result = await qqCheckLoginQr({ qrsig, ptqrtoken });
+      if (result.status === 'ok') {
+        saveQQCookie(result.cookie);
+        let info = {};
+        try { info = await getQQLoginInfo({ forceVip: true, forceCookie: true }); } catch (e) { info = { loggedIn: !!result.cookie }; }
+        sendJSON(res, {
+          provider: 'qq',
+          code: 803,
+          status: 'ok',
+          loggedIn: true,
+          hasCookie: true,
+          saved: true,
+          uin: result.uin,
+          nickname: info.nickname || result.nickname || ('QQ ' + (result.uin || '')),
+          cookie: result.cookie,
+          playbackKeyReady: !!info.playbackKeyReady,
+          message: '登录成功',
+        });
+        return;
+      }
+      const statusToCode = { expired: 800, scanned: 802, wait: 801, error: 0 };
+      sendJSON(res, {
+        provider: 'qq',
+        code: statusToCode[result.status] != null ? statusToCode[result.status] : 801,
+        status: result.status,
+        loggedIn: false,
+        retryable: !!result.retryable,
+        message: result.message || '',
+      });
+    } catch (err) {
+      console.error('[QQLoginQrCheck]', err);
+      sendJSON(res, { provider: 'qq', code: 801, status: 'wait', loggedIn: false, error: err.message }, 200);
+    }
+    return;
+  }
+
+  // ------------------------------------------------------------------
+  // 酷狗内置扫码登录（直连 login-user.kugou.com，web 签名）
+  // ------------------------------------------------------------------
+  if (pn === '/api/kugou/login/qr/key') {
+    try {
+      const buildQrImage = (text) => QRCode.toDataURL(text, { margin: 2, width: 320 });
+      const qr = await kgGetLoginQrKey(buildQrImage);
+      sendJSON(res, { provider: 'kugou', ok: true, key: qr.key, unikey: qr.key, url: qr.url, qrimg: qr.qrimg, message: '请使用酷狗 App 扫码' });
+    } catch (err) {
+      console.error('[KugouLoginQrKey]', err);
+      sendJSON(res, { provider: 'kugou', ok: false, error: 'KG_QR_KEY_FAILED', message: err.message }, 502);
+    }
+    return;
+  }
+
+  if (pn === '/api/kugou/login/qr/check') {
+    try {
+      const key = String(url.searchParams.get('key') || url.searchParams.get('qrcode') || '').trim();
+      const result = await kgCheckLoginQr(key);
+      if (result.status === 'ok') {
+        const normalized = normalizeKugouCookieInput(result.cookie);
+        saveKugouCookie(normalized);
+        // 立即用扫码 token 换正式 t1 会话并把 t1/昵称/头像并入 cookie，保证歌单/VIP 长期可用
+        try {
+          const lbt = await fetchKugouLoginByToken(normalized);
+          if (lbt && lbt.ok) {
+            const mergeParts = [];
+            if (lbt.t1) mergeParts.push('t1=' + lbt.t1);
+            if (lbt.nickname) mergeParts.push('NickName=' + encodeURIComponent(lbt.nickname));
+            if (lbt.avatar) mergeParts.push('pic=' + encodeURIComponent(lbt.avatar));
+            if (mergeParts.length) saveKugouCookie(normalized + '; ' + mergeParts.join('; '));
+          }
+        } catch (_) {}
+        let info = {};
+        try { info = await getKugouLoginInfo(kugouCookie); } catch (e) { info = { loggedIn: !!result.cookie }; }
+        sendJSON(res, {
+          provider: 'kugou',
+          code: 803,
+          status: 'ok',
+          loggedIn: true,
+          saved: true,
+          userId: result.userId,
+          nickname: info.nickname || result.nickname || ('酷狗 ' + result.userId),
+          playbackKeyReady: !!info.playbackKeyReady,
+          message: '登录成功',
+        });
+        return;
+      }
+      const statusToCode = { expired: 800, scanned: 802, wait: 801, error: 0 };
+      sendJSON(res, {
+        provider: 'kugou',
+        code: statusToCode[result.status] != null ? statusToCode[result.status] : 801,
+        status: result.status,
+        loggedIn: false,
+        message: result.message || '',
+      });
+    } catch (err) {
+      console.error('[KugouLoginQrCheck]', err);
+      sendJSON(res, { provider: 'kugou', code: 801, status: 'wait', loggedIn: false, error: err.message }, 200);
+    }
     return;
   }
 

@@ -13432,53 +13432,19 @@ class LandscapeWebActivity : ComponentActivity() {
             } catch(e) { if(window.showToast)window.showToast('汽水同步失败: '+(e&&e.message?e.message:'网络错误')); }
         };
 
-        // 覆盖 openQQWebLogin → 走 KeepApp.openQQMusicLogin
-        var _origQQ = window.openQQWebLogin;
-        if (_origQQ) {
-            window.openQQWebLogin = function() {
-                if (typeof KeepApp !== 'undefined' && KeepApp.openQQMusicLogin) {
-                    if(window.showToast)window.showToast('正在打开QQ音乐登录页…');
-                    KeepApp.openQQMusicLogin('');
-                } else { _origQQ(); }
-            };
-        }
+        // ★ QQ / 酷狗 / 汽水 / 网易云：登录统一改为内置二维码扫码登录（不再打开官网窗口）
+        // 保留 openQQWebLogin / openKugouWebLogin / openProviderWebLogin 原始实现，
+        // 由前端 03-login-modal-flows.js 的 refreshQr() 生成二维码并轮询登录状态。
         // 覆盖 openProviderWebLogin → 各平台走内置
         var _origProvider = window.openProviderWebLogin;
         if (_origProvider) {
             window.openProviderWebLogin = function() {
-                if (window.loginProvider === 'qq') {
-                    if (typeof KeepApp !== 'undefined' && KeepApp.openQQMusicLogin) {
-                        if(window.showToast)window.showToast('正在打开QQ音乐登录页…');
-                        KeepApp.openQQMusicLogin(''); return;
-                    }
-                }
-                if (window.loginProvider === 'kg') {
-                    if (typeof KeepApp !== 'undefined' && KeepApp.openKugouMusicLogin) {
-                        if(window.showToast)window.showToast('正在打开酷狗登录页…');
-                        KeepApp.openKugouMusicLogin(''); return;
-                    }
-                }
-                if (window.loginProvider === 'qishui') {
-                    // ★ 汽水音乐：不走扫码，走原逻辑（手机端登录/PC端登录选择对话框）
-                    _origProvider(); return;
-                }
-                // ★ 网易云：不使用官方窗口，走原逻辑（内置二维码扫码登录）
-                _origProvider();
-            };
-        }
-        // 覆盖 openKugouWebLogin → 走 KeepApp.openKugouMusicLogin
-        var _origKG = window.openKugouWebLogin;
-        if (_origKG) {
-            window.openKugouWebLogin = function() {
-                if (typeof KeepApp !== 'undefined' && KeepApp.openKugouMusicLogin) {
-                    if(window.showToast)window.showToast('正在打开酷狗登录页…');
-                    KeepApp.openKugouMusicLogin('');
-                } else { _origKG(); }
+                // 所有平台（含 spotify OAuth）都交给原始实现处理，前端已改为内置扫码
+                _origProvider(); return;
             };
         }
         // ★ 网易云：不覆盖 openNeteaseWebLogin，保留原逻辑（内置二维码扫码登录）
-        // ★ 汽水音乐登录：不覆盖 openQishuiWebLogin，保留原逻辑（手机端登录/PC端登录选择对话框）
-        // 原逻辑会调用 showQSLoginChoiceDialog() 弹出选择框，支持自动读取 sessionid 或手动粘贴
+        // ★ 汽水音乐登录：不覆盖 openQishuiWebLogin，保留原逻辑
         console.log('[LandscapeWebActivity] Login bridge ready');
     })();
 

@@ -1348,6 +1348,8 @@ class MineradioServer(
                     pathOnly.startsWith("/api/kg/") ||
                     pathOnly.startsWith("/api/kugou/") ||
                     pathOnly.startsWith("/api/qishui/") ||
+                    pathOnly.startsWith("/api/bodian/") ||
+                    pathOnly.startsWith("/api/local/") ||
                     pathOnly.startsWith("/api/recommend") ||
                     pathOnly.startsWith("/api/liked") ||
                     pathOnly == "/api/like" ||

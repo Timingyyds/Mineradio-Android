@@ -25,6 +25,9 @@ var loginStatus = { loggedIn: false, vipType: 0, vipLevel: 'none', isVip: false,
 var qqLoginStatus = { provider: 'qq', loggedIn: false, preview: false, nickname: 'QQ 音乐', userId: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false };
 var kugouLoginStatus = { provider: 'kugou', loggedIn: false, preview: false, nickname: '酷狗音乐', userId: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, playbackKeyReady: false };
 var qishuiLoginStatus = { provider: 'qishui', loggedIn: false, configured: false, preview: false, nickname: '汽水音乐', userId: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, playbackKeyReady: false, playbackMode: 'recommend-match' };
+var bodianLoginStatus = { provider: 'bodian', loggedIn: false, preview: false, nickname: '波点音乐', userId: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, playbackKeyReady: false };
+var bodianLoginAutoRefreshTimer = null;
+var bodianLoginWasLoggedIn = false;
 var qqLoginAutoRefreshTimer = null;
 var qqLoginStatusLastForcedAt = 0;
 var kugouLoginAutoRefreshTimer = null;
@@ -69,7 +72,7 @@ var AUDIO_FADE_IN_MS = audioFadePreference.fadeInMs;
 var AUDIO_FADE_OUT_MS = audioFadePreference.fadeOutMs;
 var AUDIO_SILENCE_GAIN = 0.0001;
 var audioFadeEnvelope = 1;
-var userPlaylists = [], neteasePlaylists = [], qqPlaylists = [], kugouPlaylists = [], qishuiPlaylists = [], spotifyPlaylists = [], myPodcastCollections = [], myPodcastItems = {}, playlistCoverCache = {};
+var userPlaylists = [], neteasePlaylists = [], qqPlaylists = [], kugouPlaylists = [], qishuiPlaylists = [], bodianPlaylists = [], spotifyPlaylists = [], myPodcastCollections = [], myPodcastItems = {}, playlistCoverCache = {};
 var queueHydrationState = {
   token: 0,
   active: false,
@@ -109,7 +112,7 @@ var AUDIO_INPUT_BRIDGE_STORE_KEY = 'mineradio-audio-input-bridge-v1';
 var PROVIDER_VIP_AUDIT_STORE_KEY = 'mineradio-provider-vip-audit-v1';
 var QQ_PLAYBACK_VIP_EVIDENCE_STORE_KEY = 'mineradio-qq-playback-vip-evidence-v1';
 var LOGIN_COOKIE_EXPORT_STORE_KEY = 'mineradio-login-cookie-export-v1';
-var PLAYBACK_QUALITY_DEFAULTS = { netease: 'hires', qq: 'lossless', kugou: 'lossless', qishui: 'standard', spotify: 'standard' };
+var PLAYBACK_QUALITY_DEFAULTS = { netease: 'hires', qq: 'lossless', kugou: 'lossless', qishui: 'standard', bodian: 'high', spotify: 'standard' };
 var PLAYBACK_QUALITY_OPTIONS = {
   netease: [
     { key: 'jymaster', title: '超清母带', sub: 'SVIP / 最高规格', svip: true },
@@ -132,6 +135,11 @@ var PLAYBACK_QUALITY_OPTIONS = {
   ],
   qishui: [
     { key: 'standard', title: '汽水匹配源', sub: 'QS 推荐 / 播放自动换源' }
+  ],
+  bodian: [
+    { key: 'lossless', title: '无损 FLAC', sub: '波点 2000k / 会员权益' },
+    { key: 'high', title: '320k MP3', sub: '波点高品质 / 默认' },
+    { key: 'standard', title: '128k MP3', sub: '波点兼容优先' }
   ],
   spotify: [
     { key: 'standard', title: 'Spotify 匹配源', sub: 'SP 搜索 / 播放自动换源' }

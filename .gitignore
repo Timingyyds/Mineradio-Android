@@ -103,3 +103,9 @@ __pycache__/
 #   是 Node.js 桥接的运行时依赖，构建时会加密进 assets，
 #   属于源码的一部分，必须提交，因此此处刻意不做全局忽略。
 # ══════════════════════════════════════════════
+
+#  波点音乐会话（登录态/设备ID，禁止上传）
+.bodian-session
+.bodian-session.json
+.bodian-session.device
+.bodian-session*

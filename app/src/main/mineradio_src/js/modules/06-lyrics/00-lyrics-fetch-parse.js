@@ -49,6 +49,9 @@ function lyricEndpointForSong(songOrId) {
   if (provider === 'qishui') {
     return '/api/qishui/lyric?id=' + encodeURIComponent(song.id || song.providerSongId || '');
   }
+  if (provider === 'bodian') {
+    return '/api/bodian/lyric?id=' + encodeURIComponent(song.id || song.mediaId || song.providerSongId || '');
+  }
   if (provider === 'spotify') {
     return '/api/spotify/lyric?id=' + encodeURIComponent(song.id || song.providerSongId || song.spotifyId || '');
   }
@@ -364,6 +367,43 @@ async function fetchLyric(songOrId, token, attempt) {
   var song;
   try {
     song = (songOrId && typeof songOrId === 'object') ? songOrId : null;
+    var isLocalSong = song && (song.type === 'local' || song.source === 'local' || song.provider === 'local');
+    // ★ 本地歌曲内嵌歌词：直接使用，不发网络请求（folia-rc 本地库同款行为）
+    if (isLocalSong && song.lyric) {
+      var inlineState = applyFetchedLyricResponse(song, token, { lyric: song.lyric }, { persist: false });
+      if (inlineState && inlineState.usableLyric) return;
+    }
+    // ★ 本地歌曲在线匹配（folia 本地库同款）：无内嵌/内嵌不可用时，按歌名+歌手搜网易云歌词与封面
+    if (isLocalSong) {
+      var matchName = song.name || song.title || '';
+      if (matchName && typeof apiJson === 'function') {
+        if (!song.__localMatch) {
+          song.__localMatch = apiJson('/api/local/match?name=' + encodeURIComponent(matchName) +
+            '&artist=' + encodeURIComponent(song.artist || '') +
+            '&duration=' + encodeURIComponent(song.duration || 0), { timeoutMs: 12000 })
+            .catch(function () { return null; });
+        }
+        var match = await song.__localMatch;
+        if (token !== trackSwitchToken) return;
+        if (match && match.ok && (match.lyric || match.yrc)) {
+          var matchState = applyFetchedLyricResponse(song, token, {
+            lyric: match.lyric || '',
+            tlyric: match.tlyric || '',
+            yrc: match.yrc || ''
+          }, { persist: false });
+          // 无内嵌封面时用匹配到的专辑封面（http URL 走现有代理通道）
+          if (match.cover && !song.cover && typeof loadCoverFromUrl === 'function') {
+            song.cover = match.cover;
+            setTimeout(function () {
+              if (token === trackSwitchToken && currentLocalSong && currentLocalSong.localKey === song.localKey) {
+                loadCoverFromUrl(songCoverSrc(song, 400), { deferHeavy: false, delay: 0, timeout: 1500 });
+              }
+            }, 200);
+          }
+          if (matchState && matchState.usableLyric) return;
+        }
+      }
+    }
     var cachedResponse = song ? await readPersistentLyricCache(song) : null;
     if (cachedResponse) {
       var cachedState = applyFetchedLyricResponse(song, token, cachedResponse, { persist: false });

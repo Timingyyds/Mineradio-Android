@@ -549,6 +549,7 @@ function setPlaylistCatalogProviderArray(provider, rows) {
   else if (provider === 'qq') qqPlaylists = rows;
   else if (provider === 'kugou') kugouPlaylists = rows;
   else if (provider === 'qishui') qishuiPlaylists = rows;
+  else if (provider === 'bodian') bodianPlaylists = rows;
   else if (provider === 'spotify') spotifyPlaylists = rows;
 }
 function playlistCatalogProviderLoggedIn(provider) {
@@ -556,6 +557,7 @@ function playlistCatalogProviderLoggedIn(provider) {
   if (provider === 'qq') return !!qqLoginStatus.loggedIn;
   if (provider === 'kugou') return !!kugouLoginStatus.loggedIn;
   if (provider === 'qishui') return !!qishuiLoginStatus.loggedIn;
+  if (provider === 'bodian') return !!(bodianLoginStatus && bodianLoginStatus.loggedIn);
   if (provider === 'spotify') return !!spotifyLoginStatus.loggedIn;
   return false;
 }
@@ -567,6 +569,7 @@ function playlistCatalogPageUrl(provider, offset, limit) {
   if (provider === 'qq') return '/api/qq/user/playlists';
   if (provider === 'kugou') return '/api/kugou/user/playlists';
   if (provider === 'qishui') return '/api/qishui/user/playlists';
+  if (provider === 'bodian') return '/api/bodian/user/playlists';
   return '';
 }
 function mergePlaylistCatalogRows(existing, incoming, provider) {
@@ -585,7 +588,7 @@ function mergePlaylistCatalogRows(existing, incoming, provider) {
 }
 function rebuildUserPlaylistsFromCatalog(opts) {
   opts = opts || {};
-  userPlaylists = neteasePlaylists.concat(qqPlaylists, kugouPlaylists, qishuiPlaylists, spotifyPlaylists);
+  userPlaylists = neteasePlaylists.concat(qqPlaylists, kugouPlaylists, qishuiPlaylists, bodianPlaylists, spotifyPlaylists);
   if (typeof applyUserPlaylistOrder === 'function') applyUserPlaylistOrder();
   playlistCatalogRevision += 1;
   renderUserPlaylistsList({ animate: !!opts.animate, reset: !!opts.reset, preserveScroll: opts.preserveScroll !== false });
@@ -640,7 +643,7 @@ function playlistCatalogHasPendingPages() {
 function requestNextPlaylistCatalogPage(reason) {
   var root = playlistCatalogSyncState;
   if (!root || !root.providers) return false;
-  var order = ['netease', 'spotify', 'qq', 'kugou', 'qishui'];
+  var order = ['netease', 'spotify', 'qq', 'kugou', 'qishui', 'bodian'];
   var provider = order.find(function (key) {
     var state = root.providers[key];
     return state && state.hasMore && !state.loading;
@@ -664,14 +667,14 @@ function requestNextPlaylistCatalogPage(reason) {
   return true;
 }
 async function refreshUserPlaylists(force) {
-  if (!loginStatus.loggedIn && !qqLoginStatus.loggedIn && !kugouLoginStatus.loggedIn && !qishuiLoginStatus.loggedIn && !spotifyLoginStatus.loggedIn) {
+  if (!loginStatus.loggedIn && !qqLoginStatus.loggedIn && !kugouLoginStatus.loggedIn && !qishuiLoginStatus.loggedIn && !(bodianLoginStatus && bodianLoginStatus.loggedIn) && !spotifyLoginStatus.loggedIn) {
     resetPlaylistPanelRenderLimit();
     document.getElementById('pl-list').innerHTML = '<div style="text-align:center;padding:24px 0;color:rgba(255,255,255,.32);font-size:11.5px">登录后显示个人歌单</div>';
     var podcastListLoggedOut = document.getElementById('podcast-list');
     if (podcastListLoggedOut) podcastListLoggedOut.innerHTML = '<div style="text-align:center;padding:14px 0;color:rgba(255,255,255,.28);font-size:11.5px">登录后显示我的播客</div>';
     return;
   }
-  var catalogNeedsNewProvider = playlistCatalogSyncState.loading && ['netease', 'qq', 'kugou', 'qishui', 'spotify'].some(function (provider) {
+  var catalogNeedsNewProvider = playlistCatalogSyncState.loading && ['netease', 'qq', 'kugou', 'qishui', 'bodian', 'spotify'].some(function (provider) {
     var state = playlistCatalogSyncState.providers && playlistCatalogSyncState.providers[provider];
     return playlistCatalogProviderLoggedIn(provider) && (!state || !state.enabled);
   });
@@ -695,7 +698,7 @@ async function refreshUserPlaylists(force) {
   if (playlistCatalogSyncState.timer) clearTimeout(playlistCatalogSyncState.timer);
   var token = playlistCatalogSyncState.token + 1;
   playlistCatalogSyncState = { token: token, loading: true, timer: 0, providers: {}, error: '', startedAt: Date.now() };
-  ['netease', 'qq', 'kugou', 'qishui', 'spotify'].forEach(function (provider) {
+  ['netease', 'qq', 'kugou', 'qishui', 'bodian', 'spotify'].forEach(function (provider) {
     if (force && playlistCatalogProviderLoggedIn(provider)) setPlaylistCatalogProviderArray(provider, []);
     playlistCatalogSyncState.providers[provider] = {
       enabled: playlistCatalogProviderLoggedIn(provider),

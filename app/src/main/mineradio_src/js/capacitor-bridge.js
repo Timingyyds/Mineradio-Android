@@ -360,18 +360,36 @@
     importLocalMusicFiles: async function (files) {
       // 移动端 webUtils.getPathForFile 不存在;直接读取为 Blob URL,
       // 但要保证 server 也能识别这个 URL —— 这里返回 blob URL 让 audio.src 直接用
+      // ★ 内嵌元数据提取（对照 folia-rc 本地库）：ID3v2/FLAC/MP4 封面+歌词+标题+艺术家
+      var canParse = typeof window.extractAudioMetadata === 'function';
       var tracks = [];
       var arr = Array.from(files || []);
       for (var i = 0; i < arr.length; i++) {
         var file = arr[i];
         try {
           var url = URL.createObjectURL(file);
+          var meta = null;
+          if (canParse && file.size > 4096) {
+            try { meta = await window.extractAudioMetadata(file); } catch (metaErr) {}
+          }
+          var fileTitle = String(file.name || ('track-' + i)).replace(/\.[^.]+$/, '');
           tracks.push({
             localFileId: 'cap-' + Date.now() + '-' + i,
             localUrl: url,
-            name: file.name || ('track-' + i),
+            name: (meta && meta.title) || fileTitle,
+            title: (meta && meta.title) || fileTitle,
+            artist: (meta && meta.artist) || '本地文件',
+            album: (meta && meta.album) || '',
+            cover: (meta && meta.coverBlobUrl) || '',
+            lyric: (meta && meta.lyricText) || '',
+            hasEmbeddedLyrics: !!(meta && meta.hasEmbeddedLyrics),
+            hasEmbeddedCover: !!(meta && meta.hasEmbeddedCover),
+            localKey: 'cap:' + String(file.name || '') + ':' + (file.size || 0) + ':' + (file.lastModified || 0),
+            duration: 0,
             size: file.size || 0,
-            type: file.type || '',
+            type: 'local',
+            source: 'local',
+            provider: 'local',
           });
         } catch (e) {}
       }

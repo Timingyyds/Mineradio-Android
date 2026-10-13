@@ -444,6 +444,40 @@ function startQishuiLoginStatusAutoRefresh() {
   }, 45000);
 }
 
+// ─────────────── 波点音乐登录状态 ───────────────
+async function refreshBodianLoginStatus() {
+  try {
+    var info = await apiJson('/api/bodian/login/status?t=' + Date.now());
+    var prevLogged = !!bodianLoginStatus.loggedIn;
+    bodianLoginStatus = Object.assign(
+      { provider: 'bodian', loggedIn: false, preview: false, nickname: '波点音乐', userId: '', avatar: '', vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, playbackKeyReady: false },
+      info || {},
+      { provider: 'bodian' }
+    );
+    if (!bodianLoginStatus.loggedIn) {
+      if (prevLogged || bodianLoginWasLoggedIn) showToast('波点音乐登录已失效');
+      bodianPlaylists = [];
+      userPlaylists = userPlaylists.filter(function (pl) { return pl && pl.provider !== 'bodian'; });
+      playlistCatalogRevision += 1;
+    } else if (!userPlaylists.some(function (pl) { return pl && pl.provider === 'bodian'; })) {
+      refreshUserPlaylists(true);
+    }
+    bodianLoginWasLoggedIn = !!bodianLoginStatus.loggedIn;
+    if (typeof hasPlatformLogin === 'function' && !hasPlatformLogin(activeAccountProvider)) activeAccountProvider = firstLoggedProvider();
+    renderUserBtn();
+    return bodianLoginStatus;
+  } catch (e) {
+    console.warn('Bodian login status failed:', e);
+    return bodianLoginStatus;
+  }
+}
+function startBodianLoginStatusAutoRefresh() {
+  if (bodianLoginAutoRefreshTimer) clearInterval(bodianLoginAutoRefreshTimer);
+  bodianLoginAutoRefreshTimer = setInterval(function () {
+    refreshBodianLoginStatus().catch(function (e) { console.warn('Bodian login auto refresh failed:', e); });
+  }, 60000);
+}
+
 function normalizeSpotifyLoginStatus(info) {
   var fallback = { provider: 'spotify', loggedIn: false, configured: false, oauthConfigured: false, oauthMissing: [], preview: false, nickname: 'Spotify', userId: '', accountId: '', avatar: '', product: '', membershipKnown: false, vipType: 0, vipLevel: 'none', isVip: false, isSvip: false, stale: false, reauthRequired: false, playbackKeyReady: false, playbackMode: 'recommend-match', tokenConfigured: false, tokenFileExists: false, credentialsFileExists: false, localConfigMissing: false, searchReady: false };
   var loggedIn = !!(info && info.loggedIn);
@@ -560,6 +594,7 @@ window.addEventListener('mineradio-server-ready', function () {
     if (typeof refreshQQLoginStatus === 'function') refreshQQLoginStatus({ reason: 'server-ready' }).catch(function () { });
     if (typeof refreshKugouLoginStatus === 'function') refreshKugouLoginStatus().catch(function () { });
     if (typeof refreshQishuiLoginStatus === 'function') refreshQishuiLoginStatus().catch(function () { });
+    if (typeof refreshBodianLoginStatus === 'function') refreshBodianLoginStatus().catch(function () { });
     if (typeof refreshSpotifyLoginStatus === 'function') refreshSpotifyLoginStatus().catch(function () { });
     if (typeof retryStartupAutoplayAfterLoginReady === 'function') retryStartupAutoplayAfterLoginReady();
   } catch (e) { }
