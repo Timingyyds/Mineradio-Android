@@ -1548,11 +1548,22 @@
             <div id="qr-status">拖动接口到 MR 接入口后开始登录。</div>
           </div>
           <div class="login-auth-body">
+            <div id="qq-login-channel-select" style="display:none;width:100%;margin-bottom:10px">
+              <div style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:8px">选择 QQ 音乐登录方式：</div>
+              <div style="display:flex;gap:8px">
+                <button id="qq-channel-qq" type="button" class="modal-btn" style="flex:1"
+                  onclick="selectQQLoginChannel('qq')"><b>QQ 扫码</b></button>
+                <button id="qq-channel-wechat" type="button" class="modal-btn" style="flex:1"
+                  onclick="selectQQLoginChannel('wechat')"><b>微信扫码</b></button>
+              </div>
+            </div>
             <div id="qr-shell" class="qr-shell">
               <img id="qr-img" src="" alt="">
               <button id="qq-web-login-card" class="qq-login-mark" type="button"
                 onclick="openProviderWebLogin()"><b>扫码</b><span>刷新二维码</span></button>
             </div>
+            <button id="qq-wechat-login-btn" type="button" class="modal-btn" style="display:none;width:100%;margin-top:10px"
+              onclick="openQQWebLogin()"><small>二维码打不开？用官网页面登录</small></button>
             <div id="qq-cookie-panel" class="qq-cookie-panel">
               <textarea id="qq-cookie-input" class="qq-cookie-input" spellcheck="false" autocomplete="off"
                 placeholder="uin=...; qqmusic_key=...; qm_keyst=..."></textarea>
