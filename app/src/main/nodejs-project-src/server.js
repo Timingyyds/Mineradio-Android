@@ -142,6 +142,7 @@ const {
   readCuefieldFeedbackStats,
 } = require('./cuefield/feedback-log');
 const { planCuefieldTransitionFromCache } = require('./cuefield/mineradio-bridge');
+const { qqWechatGetLoginQr, qqWechatCheckLoginQr } = require('./qq-wechat-login');
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -6412,6 +6413,58 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error('[QQLoginQrKey]', err);
       sendJSON(res, { provider: 'qq', ok: false, error: 'QQ_QR_KEY_FAILED', message: err.message }, 502);
+    }
+    return;
+  }
+
+  // ★ QQ 音乐微信扫码登录（tmeLoginType:1，协议移植 folia qq-wechat-login.js）
+  if (pn === '/api/qq/wechat/login/qr') {
+    try {
+      const qr = await qqWechatGetLoginQr();
+      sendJSON(res, { provider: 'qq', ok: true, img: qr.qrimg, qrsig: qr.uuid, ptqrtoken: qr.uuid, channel: 'wechat', message: '请使用微信扫码' });
+    } catch (err) {
+      console.error('[QQWechatQr]', err);
+      sendJSON(res, { provider: 'qq', ok: false, error: 'QQ_WECHAT_QR_FAILED', message: err.message }, 502);
+    }
+    return;
+  }
+
+  if (pn === '/api/qq/wechat/login/check') {
+    try {
+      const qrsig = String(url.searchParams.get('qrsig') || url.searchParams.get('key') || '').trim();
+      const result = await qqWechatCheckLoginQr({ qrsig });
+      if (result.status === 'ok') {
+        saveQQCookie(result.cookie);
+        let info = {};
+        try { info = await getQQLoginInfo({ forceVip: true, forceCookie: true }); } catch (e) { info = { loggedIn: !!result.cookie }; }
+        sendJSON(res, {
+          provider: 'qq',
+          channel: 'wechat',
+          code: 803,
+          status: 'ok',
+          loggedIn: true,
+          hasCookie: true,
+          saved: true,
+          uin: result.uin,
+          nickname: info.nickname || result.nickname || '微信用户',
+          cookie: result.cookie,
+          playbackKeyReady: !!info.playbackKeyReady,
+          message: '微信登录成功',
+        });
+        return;
+      }
+      const statusToCode = { expired: 800, scanned: 802, wait: 801, cancelled: 803, error: 0 };
+      sendJSON(res, {
+        provider: 'qq',
+        channel: 'wechat',
+        code: statusToCode[result.status] != null ? statusToCode[result.status] : 801,
+        status: result.status,
+        loggedIn: false,
+        message: result.message || '',
+      });
+    } catch (err) {
+      console.error('[QQWechatCheck]', err);
+      sendJSON(res, { provider: 'qq', channel: 'wechat', status: 'error', loggedIn: false, message: err.message }, 502);
     }
     return;
   }
