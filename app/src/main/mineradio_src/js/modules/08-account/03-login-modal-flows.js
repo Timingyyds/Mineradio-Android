@@ -735,6 +735,8 @@ function updateLoginProviderUi() {
   var qqCookieInput = document.getElementById('qq-cookie-input');
   var qqCookieNote = qqPanel ? qqPanel.querySelector('.qq-cookie-note') : null;
   var qqCard = document.getElementById('qq-web-login-card');
+  var qqWechatBtn = document.getElementById('qq-wechat-login-btn');
+  var qqChannelSelect = document.getElementById('qq-login-channel-select');
   var neteaseBtn = document.getElementById('login-provider-netease');
   var qqBtn = document.getElementById('login-provider-qq');
   var kugouBtn = document.getElementById('login-provider-kugou');
@@ -850,6 +852,10 @@ function updateLoginProviderUi() {
       ? (qqWebLoginBusy ? '等待扫码确认' : (qqLoginStatus.loggedIn ? '重新打开官方窗口同步会员' : '打开官方扫码窗口'))
       : (isKugou ? (kugouWebLoginBusy ? '等待登录确认' : '打开官方登录窗口') : (isQishui ? (qishuiOAuthBusy ? '打开中…' : '打开官方扫码窗口') : (isBodian ? '刷新二维码' : (neteaseWebLoginBusy ? '等待扫码确认' : '刷新二维码'))));
   }
+  // ★ 微信账号登录入口：仅 QQ 平台显示（QQ 音乐官方登录页支持微信扫码）
+  if (qqWechatBtn) qqWechatBtn.style.display = isQQ ? '' : 'none';
+  // ★ QQ 登录方式选择（QQ 扫码 / 微信扫码）：进入 QQ 登录时显示
+  if (qqChannelSelect) qqChannelSelect.style.display = isQQ ? '' : 'none';
   if (st) {
     st.className = isManualCookieProvider ? 'preview' : '';
     st.textContent = isQQ
@@ -936,10 +942,21 @@ async function refreshQr() {
     return;
   }
   if (loginProvider === 'qq') {
-    // QQ 音乐: 使用内置二维码（ptlogin 协议直连）
+    // QQ 音乐: 内置二维码（ptlogin 协议直连）；微信渠道走 open.weixin qrconnect 协议
     qrKey = null;
     qrQqPtqrtoken = '';
     try {
+      if (qqQrChannel === 'wechat') {
+        var wxQr = await apiJson('/api/qq/wechat/login/qr');
+        if (!isLoginRefreshCurrent(refreshProvider, refreshSeq)) return;
+        if (!wxQr || !wxQr.ok || !wxQr.qrsig || !wxQr.img) throw new Error((wxQr && wxQr.message) || '微信二维码生成失败');
+        qrKey = wxQr.qrsig;
+        qrQqPtqrtoken = String(wxQr.ptqrtoken || '');
+        document.getElementById('qr-img').src = wxQr.img;
+        document.getElementById('qr-status').textContent = '请使用微信扫码并确认登录';
+        startQrPoll();
+        return;
+      }
       var qqQr = await apiJson('/api/qq/login/qr/key');
       if (!isLoginRefreshCurrent(refreshProvider, refreshSeq)) return;
       if (!qqQr || !qqQr.ok || !qqQr.qrsig || !qqQr.img) throw new Error((qqQr && qqQr.message) || 'QQ 二维码生成失败');
@@ -1250,6 +1267,14 @@ function openProviderWebLogin() {
   if (loginProvider === 'spotify') return openSpotifyWebLogin();
   return refreshQr();
 }
+// ★ QQ 音乐登录渠道（QQ 扫码 / 微信扫码，folia 同款交互）
+var qqQrChannel = 'qq';
+function selectQQLoginChannel(channel) {
+  qqQrChannel = channel === 'wechat' ? 'wechat' : 'qq';
+  var selectEl = document.getElementById('qq-login-channel-select');
+  if (selectEl) selectEl.style.display = 'none';
+  refreshQr();
+}
 async function openSpotifyWebLogin() {
   if (spotifyOAuthBusy) return;
   var statusEl = document.getElementById('qr-status');
@@ -1394,7 +1419,7 @@ async function openQQWebLogin() {
     // 移动端: 打开 QQ 音乐官网登录页(应用内浏览器全屏),扫码登录后自动获取Cookie并返回
     qqManualCookieOpen = true;
     updateLoginProviderUi();
-    if (statusEl) { statusEl.innerHTML = '已打开 QQ 音乐官网,请扫码登录,登录成功后将自动返回并同步。'; statusEl.className = 'preview'; }
+    if (statusEl) { statusEl.innerHTML = '已在应用内打开 <b>QQ 音乐官网</b>。<br>点击页面右上角「登录」→ 选择<b>微信图标</b> → 微信扫码确认。<br>登录成功后将自动同步账号。'; statusEl.className = 'preview'; }
     // 注册 Cookie 回调: 应用内浏览器检测到登录后自动回传 Cookie
     window.onInAppBrowserCookie = function (cookie) {
       if (!cookie) { if (statusEl) { statusEl.textContent = '未获取到 Cookie,请先在官网登录'; statusEl.className = 'fail'; } return; }
@@ -1760,7 +1785,9 @@ async function checkProviderQrStatus(provider) {
   if (provider === 'kugou' && kugouQrCheckBusy) return;
   if (provider === 'bodian' && bodianQrCheckBusy) return;
   var query = provider === 'qq'
-    ? ('/api/qq/login/qr/check?qrsig=' + encodeURIComponent(qrKey) + '&ptqrtoken=' + encodeURIComponent(qrQqPtqrtoken))
+    ? (qqQrChannel === 'wechat'
+      ? ('/api/qq/wechat/login/check?qrsig=' + encodeURIComponent(qrKey))
+      : ('/api/qq/login/qr/check?qrsig=' + encodeURIComponent(qrKey) + '&ptqrtoken=' + encodeURIComponent(qrQqPtqrtoken)))
     : (provider === 'bodian'
       ? ('/api/bodian/login/qr/check?key=' + encodeURIComponent(qrKey))
       : ('/api/kugou/login/qr/check?key=' + encodeURIComponent(qrKey)));
@@ -1773,6 +1800,12 @@ async function checkProviderQrStatus(provider) {
     var code = Number(r && r.code) || 0;
     if (code === 800) {
       stopQrPoll();
+      if (provider === 'qq' && qqQrChannel === 'wechat') {
+        // 微信二维码有效期短：过期自动重新取码
+        if (statusEl) { statusEl.textContent = '微信二维码已过期，正在刷新…'; statusEl.className = 'preview'; }
+        setTimeout(function () { if (loginProvider === 'qq' && qqQrChannel === 'wechat') refreshQr(); }, 1200);
+        return;
+      }
       if (statusEl) { statusEl.textContent = '二维码已过期，请刷新'; statusEl.className = 'fail'; }
     } else if (code === 802) {
       if (statusEl) { statusEl.textContent = '已扫码，请在手机确认…'; statusEl.className = 'scan'; }
