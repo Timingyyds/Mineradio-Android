@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`music-3`,size:24,node:[[`circle`,{cx:`12`,cy:`18`,r:`4`,key:`m3r9ws`}],[`path`,{d:`M16 18V2`,key:`40x2m5`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

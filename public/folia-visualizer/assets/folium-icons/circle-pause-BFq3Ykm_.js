@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`circle-pause`,size:24,node:[[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}],[`line`,{x1:`10`,x2:`10`,y1:`15`,y2:`9`,key:`c1nkhi`}],[`line`,{x1:`14`,x2:`14`,y1:`15`,y2:`9`,key:`h65svq`}]],aliases:[`pause-circle`]};t.node;var n=e(t);export{t as __iconData,n as default};

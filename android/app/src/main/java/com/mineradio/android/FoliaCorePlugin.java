@@ -1,0 +1,1878 @@
+package com.mineradio.android;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.ClipData;
+import android.content.ContentResolver;
+import android.content.ActivityNotFoundException;
+import android.content.Context;
+import android.content.Intent;
+import android.database.Cursor;
+import android.os.Build;
+import android.os.PowerManager;
+import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
+import android.provider.MediaStore;
+import android.webkit.CookieManager;
+import android.webkit.WebView;
+import android.view.WindowManager;
+import android.net.Uri;
+import android.util.Base64;
+
+import androidx.activity.result.ActivityResult;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+
+import com.getcapacitor.PermissionState;
+import com.getcapacitor.JSArray;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.ActivityCallback;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
+
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.Headers;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
+@CapacitorPlugin(
+    name = "FoliaNative",
+    permissions = {
+        @Permission(
+            alias = "audio",
+            strings = { Manifest.permission.READ_MEDIA_AUDIO }
+        ),
+        @Permission(
+            alias = "audioLegacy",
+            strings = { Manifest.permission.READ_EXTERNAL_STORAGE }
+        ),
+        @Permission(
+            alias = "notifications",
+            strings = { Manifest.permission.POST_NOTIFICATIONS }
+        )
+    }
+)
+public class FoliaCorePlugin extends Plugin {
+    private static volatile FoliaCorePlugin instance;
+    private static volatile String playbackArtworkCover = "";
+    private static volatile String playbackArtworkStatus = "none";
+    private static volatile String playbackArtworkDetail = "";
+    private static volatile long playbackArtworkAt = 0;
+    private static volatile boolean playbackArtworkApplied = false;
+    private final OkHttpClient client = new OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .writeTimeout(45, TimeUnit.SECONDS)
+        .build();
+    private LocalAudioServer localAudioServer;
+    private boolean isAudioPickerOpen = false;
+
+    @Override
+    public void load() {
+        instance = this;
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (instance == this) instance = null;
+        super.handleOnDestroy();
+    }
+
+    static void emitMediaAction(String action) {
+        FoliaCorePlugin plugin = instance;
+        if (plugin == null) return;
+        JSObject payload = new JSObject();
+        payload.put("action", action);
+        plugin.getActivity().runOnUiThread(() -> plugin.notifyListeners("mediaAction", payload));
+    }
+
+    /** True when the WebView handled Back; false lets the activity fall back to normal exit. */
+    static boolean emitBackPressed() {
+        FoliaCorePlugin plugin = instance;
+        if (plugin == null || !plugin.hasListeners("backButton")) {
+            if (plugin != null) {
+                CrashDiagnostics.recordText(
+                    plugin.getContext(),
+                    "back-press",
+                    "main",
+                    "native-fallback",
+                    "No JS backButton listener; activity will finish",
+                    "FoliaCorePlugin.emitBackPressed"
+                );
+            }
+            return false;
+        }
+        Activity activity = plugin.getActivity();
+        if (activity == null) return false;
+        CrashDiagnostics.recordText(
+            plugin.getContext(),
+            "back-press",
+            "main",
+            "native-emit",
+            "Forwarding Back to the WebView listener",
+            "FoliaCorePlugin.emitBackPressed"
+        );
+        JSObject payload = new JSObject();
+        activity.runOnUiThread(() -> plugin.notifyListeners("backButton", payload));
+        return true;
+    }
+
+    static void notePlaybackArtwork(String coverUrl, String status, String detail) {
+        playbackArtworkCover = describePlaybackArtworkUrl(coverUrl);
+        playbackArtworkStatus = status == null || status.isEmpty() ? "unknown" : status;
+        playbackArtworkDetail = detail == null ? "" : detail;
+        playbackArtworkAt = System.currentTimeMillis();
+    }
+
+    static void notePlaybackArtworkApplied(boolean applied) {
+        playbackArtworkApplied = applied;
+    }
+
+    private static String describePlaybackArtworkUrl(String value) {
+        if (value == null || value.isEmpty()) return "";
+        try {
+            URL url = new URL(value);
+            return url.getProtocol() + "://" + url.getHost() + url.getPath();
+        } catch (Exception ignored) {
+            return "invalid";
+        }
+    }
+
+    /**
+     * 打开应用内的登录页：用本应用自己的 WebView，所以登录后的 Cookie 落在同一个
+     * CookieManager 里——原生桥的 OkHttp 和 WebView 共用它，拿到的会话立刻可用。
+     * 到达 successHost 后返回该站点整串 Cookie；用户关掉窗口则返回 null。
+     */
+    @PluginMethod
+    public void openWebLogin(PluginCall call) {
+        final String url = call.getString("url",
+            "https://accounts.google.com/ServiceLogin?hl=zh-CN&continue=https%3A%2F%2Fmusic.youtube.com%2F");
+        final String successHost = call.getString("successHost", "music.youtube.com");
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("No activity");
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            android.util.Log.i("FoliaSpotify", "openWebRedirect: building the window");
+            // 默认主题的 Dialog + 显式铺满：DeviceDefault 的全屏主题在部分 OEM 上不显示窗口。
+            final android.app.Dialog dialog = new android.app.Dialog(activity);
+            final WebView web = new WebView(activity);
+            web.getSettings().setJavaScriptEnabled(true);
+            web.getSettings().setDomStorageEnabled(true);
+            web.getSettings().setDatabaseEnabled(true);
+            CookieManager.getInstance().setAcceptCookie(true);
+            CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+
+            final boolean[] settled = { false };
+            final Runnable finish = () -> {
+                if (settled[0]) return;
+                settled[0] = true;
+                try { dialog.dismiss(); } catch (Exception ignored) { }
+                try { web.destroy(); } catch (Exception ignored) { }
+            };
+
+            web.setWebViewClient(new android.webkit.WebViewClient() {
+                private boolean arrived(String target) {
+                    if (target == null) return false;
+                    // 必须按主机名判：登录页的 continue 参数里就写着 music.youtube.com，
+                    // 用 contains 会在第一次加载 accounts.google.com 时就误判成"已到站"。
+                    String host = null;
+                    try {
+                        host = android.net.Uri.parse(target).getHost();
+                    } catch (Exception ignored) {
+                    }
+                    if (host == null) return false;
+                    boolean onSite = host.equalsIgnoreCase(successHost)
+                        || host.toLowerCase(java.util.Locale.ROOT).endsWith("." + successHost);
+                    if (!onSite) return false;
+                    CookieManager.getInstance().flush();
+                    String cookie = CookieManager.getInstance().getCookie("https://" + successHost + "/");
+                    // 刚落地时 Set-Cookie 可能还没落进 CookieManager：最多等 1.5 秒看会话 Cookie 有没有来。
+                    for (int attempt = 0; attempt < 15 && (cookie == null || cookie.isEmpty()); attempt += 1) {
+                        try { Thread.sleep(100); } catch (InterruptedException ignored) { }
+                        cookie = CookieManager.getInstance().getCookie("https://" + successHost + "/");
+                    }
+                    /*
+                     * 到了站上不等于登进去了：登录入口现在就是 music.youtube.com（要走 Google 的
+                     * 账号选择器），未登录时它一加载就会命中这个回调。所以只有 Cookie 里真的带着
+                     * Google 会话（SAPISID / __Secure-3PAPISID）才算完成，否则把窗口留给用户去登录。
+                     * 其它站点（网易云音乐）没有这套 Google cookie，按「Cookie 非空」就算登录完成。
+                     */
+                    boolean googleHost = successHost.endsWith("google.com") || successHost.endsWith("youtube.com");
+                    boolean neteaseHost = successHost.endsWith("163.com");
+                    boolean sessionReady;
+                    if (googleHost) sessionReady = hasGoogleSessionCookie(cookie);
+                    else if (neteaseHost) sessionReady = hasNamedCookie(cookie, "MUSIC_U");
+                    else sessionReady = cookie != null && !cookie.isEmpty();
+                    if (!sessionReady) {
+                        android.util.Log.i("FoliaLogin", "on site without a session cookie yet, keeping the window open");
+                        return false;
+                    }
+                    finish.run();
+                    JSObject result = new JSObject();
+                    result.put("cookie", cookie == null ? "" : cookie);
+                    call.resolve(result);
+                    return true;
+                }
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                    return arrived(request.getUrl() == null ? null : request.getUrl().toString());
+                }
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, String target) {
+                    return arrived(target);
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String target) {
+                    super.onPageFinished(view, target);
+                    arrived(target);
+                }
+            });
+
+            dialog.setOnCancelListener(d -> {
+                finish.run();
+                JSObject result = new JSObject();
+                result.put("cookie", null);
+                call.resolve(result);
+            });
+            dialog.setContentView(web);
+            dialog.show();
+            web.loadUrl(url);
+
+            /*
+             * 网易云登录页是 SPA：登录成功只更新 Cookie，不触发导航/onPageFinished，
+             * 光靠回调永远等不到会话。这里每 600ms 轮询一次 CookieManager，
+             * 看到 MUSIC_U（网易云）/ Google 会话（YouTube）就结束并回传整串 Cookie。
+             */
+            final android.os.Handler cookiePollHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+            final int[] cookiePollCount = { 0 };
+            final Runnable cookiePoll = new Runnable() {
+                @Override
+                public void run() {
+                    if (settled[0] || cookiePollCount[0]++ > 600) return;
+                    CookieManager.getInstance().flush();
+                    String cookie = CookieManager.getInstance().getCookie("https://" + successHost + "/");
+                    boolean ready;
+                    if (successHost.endsWith("163.com")) ready = hasNamedCookie(cookie, "MUSIC_U");
+                    else if (successHost.endsWith("google.com") || successHost.endsWith("youtube.com")) ready = hasGoogleSessionCookie(cookie);
+                    else ready = cookie != null && !cookie.isEmpty();
+                    if (!ready) {
+                        cookiePollHandler.postDelayed(this, 600);
+                        return;
+                    }
+                    if (settled[0]) return;
+                    finish.run();
+                    JSObject result = new JSObject();
+                    result.put("cookie", cookie == null ? "" : cookie);
+                    call.resolve(result);
+                }
+            };
+            cookiePollHandler.postDelayed(cookiePoll, 800);
+        });
+    }
+
+    /** 整串 Cookie 里有没有 Google 的会话（SAPISID / __Secure-3PAPISID）。 */
+    private static boolean hasGoogleSessionCookie(String cookie) {
+        if (cookie == null || cookie.isEmpty()) return false;
+        for (String part : cookie.split(";")) {
+            String name = part.trim().split("=", 2)[0];
+            if (("SAPISID".equals(name) || "__Secure-3PAPISID".equals(name)) && part.indexOf('=') > 0
+                && part.substring(part.indexOf('=') + 1).trim().length() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 整串 Cookie 里有没有指定名字且值非空的 Cookie（网易云靠 MUSIC_U 判定登录完成）。 */
+    private static boolean hasNamedCookie(String cookie, String wanted) {
+        if (cookie == null || cookie.isEmpty()) return false;
+        for (String part : cookie.split(";")) {
+            int eq = part.indexOf('=');
+            if (eq <= 0) continue;
+            String name = part.substring(0, eq).trim();
+            String value = part.substring(eq + 1).trim();
+            if (name.equals(wanted) && !value.isEmpty()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 取 Spotify 的 `client-token`：pathfinder 现在要求请求带它，而它只由 Spotify 自己的网页播放器拿。
+     *
+     * 做法：开一个 1x1 透明 WebView 加载 open.spotify.com，注入脚本钩住 fetch / XHR，
+     * 把网页播放器自己发出的 `client-token` 请求头抄下来，拿到就销毁这个 WebView。
+     * 拿不到就回空串（调用方按没有 token 走，行为与以前一致）。
+     */
+    @PluginMethod
+    public void spotifyClientToken(PluginCall call) {
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("No activity");
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            final WebView web = new WebView(activity);
+            final android.webkit.WebSettings settings = web.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+            settings.setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+            CookieManager.getInstance().setAcceptCookie(true);
+            CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+            final boolean visible = Boolean.TRUE.equals(call.getBoolean("visible", false));
+            web.setAlpha(visible ? 1f : 0f);
+            web.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
+                visible ? android.view.ViewGroup.LayoutParams.MATCH_PARENT : 1,
+                visible ? android.view.ViewGroup.LayoutParams.MATCH_PARENT : 1));
+
+            final String hook = "(function(){"
+                + "if(window.__foliaHooked)return;window.__foliaHooked=true;"
+                + "window.__foliaClientToken=window.__foliaClientToken||'';"
+                + "var grab=function(v){try{if(v&&String(v).length>20)window.__foliaClientToken=String(v);}catch(e){}};"
+                + "var pick=function(list){try{"
+                + "if(!list)return;"
+                + "if(typeof list.forEach==='function'&&!Array.isArray(list)){list.forEach(function(v,k){if(String(k).toLowerCase()==='client-token')grab(v);});return;}"
+                + "if(Array.isArray(list)){list.forEach(function(p){if(p&&String(p[0]).toLowerCase()==='client-token')grab(p[1]);});return;}"
+                + "if(typeof list==='object'){Object.keys(list).forEach(function(k){if(String(k).toLowerCase()==='client-token')grab(list[k]);});}"
+                + "}catch(e){}};"
+                + "var of=window.fetch;window.fetch=function(input,init){try{pick(init&&init.headers);pick(input&&input.headers);}catch(e){}return of.apply(this,arguments);};"
+                + "var sp=XMLHttpRequest.prototype.setRequestHeader;"
+                + "XMLHttpRequest.prototype.setRequestHeader=function(name,value){try{if(String(name).toLowerCase()==='client-token')grab(value);}catch(e){}return sp.apply(this,arguments);};"
+                + "})();";
+
+            final boolean[] settled = { false };
+            final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            final int[] attempts = { 0 };
+            // 可见模式下用户可能还要登录，给两分钟；隐藏模式只是探一下，十五秒就够。
+            final int limit = visible ? 240 : 30;
+            final android.app.Dialog[] holder = new android.app.Dialog[1];
+            final Runnable cleanup = () -> {
+                try { web.stopLoading(); } catch (Exception ignored) { }
+                try { if (holder[0] != null) holder[0].dismiss(); } catch (Exception ignored) { }
+                try { ((android.view.ViewGroup) web.getParent()).removeView(web); } catch (Exception ignored) { }
+                try { web.destroy(); } catch (Exception ignored) { }
+            };
+            final Runnable finish = () -> {
+                if (settled[0]) return;
+                settled[0] = true;
+                web.evaluateJavascript("window.__foliaClientToken||''", value -> {
+                    String token = value == null ? "" : value.trim();
+                    if (token.startsWith("\"") && token.endsWith("\"") && token.length() > 1) {
+                        token = token.substring(1, token.length() - 1);
+                    }
+                    if ("null".equals(token)) token = "";
+                    android.util.Log.i("FoliaSpotify", "client-token: " + (token.isEmpty() ? "none" : token.length() + " chars"));
+                    // 调试用：把结果写到应用外部目录，便于排查（不含任何账号凭据，拿不到就写 none）。
+                    try {
+                        java.io.File probe = new java.io.File(
+                            activity.getExternalFilesDir(null), "spotify-client-token.txt");
+                        java.io.FileWriter writer = new java.io.FileWriter(probe, false);
+                        writer.write(token.isEmpty() ? "none" : token);
+                        writer.close();
+                    } catch (Exception ignored) { }
+                    cleanup.run();
+                    JSObject result = new JSObject();
+                    result.put("token", token);
+                    call.resolve(result);
+                });
+            };
+            final Runnable[] poll = new Runnable[1];
+            poll[0] = () -> {
+                if (settled[0]) return;
+                attempts[0] += 1;
+                web.evaluateJavascript("window.__foliaClientToken||''", value -> {
+                    String token = value == null ? "" : value.trim();
+                    if (token.length() > 22 && !"null".equals(token)) {
+                        finish.run();
+                        return;
+                    }
+                    if (attempts[0] >= limit) {
+                        finish.run();
+                        return;
+                    }
+                    handler.postDelayed(poll[0], 500);
+                });
+            };
+
+            web.setWebViewClient(new android.webkit.WebViewClient() {
+                @Override
+                public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
+                    super.onPageStarted(view, url, icon);
+                    view.evaluateJavascript(hook, null);
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    view.evaluateJavascript(hook, null);
+                }
+            });
+
+            if (visible) {
+                android.app.Dialog dialog = new android.app.Dialog(activity);
+                holder[0] = dialog;
+                dialog.setContentView(web);
+                dialog.show();
+                if (dialog.getWindow() != null) {
+                    dialog.getWindow().setLayout(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+                }
+            } else {
+                try {
+                    ((android.view.ViewGroup) activity.findViewById(android.R.id.content)).addView(web);
+                } catch (Exception error) {
+                    android.util.Log.w("FoliaSpotify", "client-token: cannot attach the web view: " + error.getMessage());
+                }
+            }
+            web.loadUrl("https://open.spotify.com/");
+            handler.postDelayed(poll[0], 1200);
+        });
+    }
+
+    /** 等浏览器跳回 127.0.0.1 的那次请求用的服务（Spotify 登录）。 */
+    private static java.net.ServerSocket spotifyLoopback;
+    private static Thread spotifyLoopbackThread;
+    private static PluginCall spotifyLoginCall;
+
+    /**
+     * Spotify 登录：本机起一个小服务等浏览器跳回，再用系统浏览器打开授权页。
+     *
+     * 桌面版就是这条路（electron/spotify/signIn.cjs：127.0.0.1:5588 上的服务收 code）。
+     * 手机上用应用内 WebView 弹窗会被 OEM 的窗口策略挡住（实测窗口没出现），
+     * 换成系统浏览器后，跳回 127.0.0.1:5588/login 的请求由这个服务直接接住。
+     */
+    @PluginMethod
+    public void openSpotifyLogin(PluginCall call) {
+        final String url = call.getString("url", "");
+        final String redirectPrefix = call.getString("redirectPrefix", "http://127.0.0.1:5588/login");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing authorize url");
+            return;
+        }
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("No activity");
+            return;
+        }
+        int port;
+        try {
+            java.net.URI redirect = java.net.URI.create(redirectPrefix);
+            port = redirect.getPort() > 0 ? redirect.getPort() : 80;
+        } catch (Exception error) {
+            call.reject("Bad redirect uri", error);
+            return;
+        }
+        // 上一次还没结束的，先收掉。
+        stopSpotifyLoopback("");
+        spotifyLoginCall = call;
+        try {
+            final java.net.ServerSocket server = new java.net.ServerSocket(port, 8, java.net.InetAddress.getByName("127.0.0.1"));
+            spotifyLoopback = server;
+            spotifyLoopbackThread = new Thread(() -> {
+                while (!server.isClosed()) {
+                    try (java.net.Socket socket = server.accept()) {
+                        java.io.BufferedReader reader = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(socket.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+                        String requestLine = reader.readLine();
+                        if (requestLine == null) continue;
+                        String target = requestLine.split(" ").length > 1 ? requestLine.split(" ")[1] : "";
+                        if (!target.startsWith("/")) continue;
+                        String full = "http://127.0.0.1:" + port + target;
+                        java.io.OutputStream output = socket.getOutputStream();
+                        String page = "<!doctype html><meta charset=\"utf-8\"><title>Folia</title>"
+                            + "<body style=\"margin:0;display:grid;place-items:center;height:100vh;background:#121212;color:#fff;"
+                            + "font:16px system-ui,sans-serif\">已收到 Spotify 的授权，可以回到 Folia 了。</body>";
+                        byte[] body = page.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        output.write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: "
+                            + body.length + "\r\nConnection: close\r\n\r\n").getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+                        output.write(body);
+                        output.flush();
+                        if (target.startsWith("/login")) {
+                            android.util.Log.i("FoliaSpotify", "redirect received: " + full);
+                            stopSpotifyLoopback(full);
+                        }
+                    } catch (Exception error) {
+                        if (server.isClosed()) break;
+                        android.util.Log.w("FoliaSpotify", "loopback failed: " + error.getMessage());
+                    }
+                }
+            }, "spotify-loopback");
+            spotifyLoopbackThread.setDaemon(true);
+            spotifyLoopbackThread.start();
+        } catch (Exception error) {
+            android.util.Log.e("FoliaSpotify", "cannot listen on " + port + ": " + error.getMessage());
+            call.reject("Spotify 登录需要 127.0.0.1:" + port + "，但起不来（端口被占？）：" + error.getMessage(), error);
+            return;
+        }
+        android.util.Log.i("FoliaSpotify", "waiting for the redirect on 127.0.0.1:" + port);
+        activity.startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+    }
+
+    /** 收掉登录服务，并把结果交回 JS（`url` 为空表示没等到）。 */
+    private static void stopSpotifyLoopback(String url) {
+        PluginCall waiting = spotifyLoginCall;
+        spotifyLoginCall = null;
+        try {
+            if (spotifyLoopback != null) spotifyLoopback.close();
+        } catch (Exception ignored) { }
+        spotifyLoopback = null;
+        spotifyLoopbackThread = null;
+        if (waiting != null) {
+            JSObject result = new JSObject();
+            result.put("url", url == null ? "" : url);
+            waiting.resolve(result);
+        }
+    }
+
+    /**
+     * 开一个登录窗，拦下**跳回本地**的那一次导航，把整条 URL 交回 JS（Spotify 的 OAuth PKCE）。
+     *
+     * 桌面版在 127.0.0.1:5588 起一个真服务等浏览器回来；手机上没必要：跳回 127.0.0.1 的那一次
+     * 导航被这里截住就行，页面不再真的去连（也就不会有"端口被占"的问题）。
+     */
+    @PluginMethod
+    public void openWebRedirect(PluginCall call) {
+        final String url = call.getString("url", "");
+        final String redirectPrefix = call.getString("redirectPrefix", "http://127.0.0.1:5588/login");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing login url");
+            return;
+        }
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("No activity");
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            final android.app.Dialog dialog = new android.app.Dialog(
+                activity, android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen);
+            final WebView web = new WebView(activity);
+            web.getSettings().setJavaScriptEnabled(true);
+            web.getSettings().setDomStorageEnabled(true);
+            web.getSettings().setDatabaseEnabled(true);
+            CookieManager.getInstance().setAcceptCookie(true);
+            CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+
+            final boolean[] settled = { false };
+            final Runnable finish = () -> {
+                if (settled[0]) return;
+                settled[0] = true;
+                try { dialog.dismiss(); } catch (Exception ignored) { }
+                try { web.destroy(); } catch (Exception ignored) { }
+            };
+
+            web.setWebViewClient(new android.webkit.WebViewClient() {
+                private boolean intercepted(String target) {
+                    if (target == null) return false;
+                    if (!target.startsWith(redirectPrefix)) return false;
+                    android.util.Log.i("FoliaSpotify", "openWebRedirect: redirect caught: " + target);
+                    finish.run();
+                    JSObject result = new JSObject();
+                    result.put("url", target);
+                    call.resolve(result);
+                    return true;
+                }
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                    return intercepted(request.getUrl() == null ? null : request.getUrl().toString());
+                }
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, String target) {
+                    return intercepted(target);
+                }
+
+                @Override
+                public void onPageStarted(WebView view, String target, android.graphics.Bitmap icon) {
+                    super.onPageStarted(view, target, icon);
+                    // 服务端 302 回 127.0.0.1 时不一定走 shouldOverrideUrlLoading，这里兜一层。
+                    if (intercepted(target)) view.stopLoading();
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String target) {
+                    super.onPageFinished(view, target);
+                    intercepted(target);
+                }
+            });
+
+            dialog.setOnCancelListener(d -> {
+                finish.run();
+                JSObject result = new JSObject();
+                result.put("url", "");
+                call.resolve(result);
+            });
+            dialog.setContentView(web);
+            try {
+                dialog.show();
+                if (dialog.getWindow() != null) {
+                    dialog.getWindow().setLayout(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+                }
+                android.util.Log.i("FoliaSpotify", "openWebRedirect: window shown");
+            } catch (Throwable error) {
+                android.util.Log.e("FoliaSpotify", "openWebRedirect: window refused: " + error);
+                call.reject("登录窗口打不开：" + error.getMessage());
+                return;
+            }
+            web.loadUrl(url);
+        });
+    }
+
+    @PluginMethod
+    public void cookiesGetAll(PluginCall call) {
+        String url = call.getString("url", "");
+        String domain = call.getString("domain", "");
+        if (url == null || url.isEmpty()) {
+            if (domain == null || domain.isEmpty()) {
+                url = "https://localhost/";
+            } else {
+                url = domain.startsWith("http") ? domain : "https://" + domain;
+            }
+        }
+
+        JSArray cookies = new JSArray();
+        for (JSObject cookie : parseCookieHeader(CookieManager.getInstance().getCookie(url), domain)) {
+            cookies.put(cookie);
+        }
+        JSObject result = new JSObject();
+        result.put("cookies", cookies);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void cookiesGet(PluginCall call) {
+        String url = call.getString("url", "https://localhost/");
+        String name = call.getString("name", "");
+        if (name == null || name.isEmpty()) {
+            call.reject("Missing cookie name");
+            return;
+        }
+        for (JSObject cookie : parseCookieHeader(CookieManager.getInstance().getCookie(url), "")) {
+            if (name.equals(cookie.optString("name"))) {
+                JSObject result = new JSObject();
+                result.put("cookie", cookie);
+                call.resolve(result);
+                return;
+            }
+        }
+        JSObject result = new JSObject();
+        result.put("cookie", null);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void cookiesSet(PluginCall call) {
+        String url = call.getString("url", "");
+        String name = call.getString("name", "");
+        String value = call.getString("value", "");
+        if (url == null || url.isEmpty() || name == null || name.isEmpty()) {
+            call.reject("Cookie url and name are required");
+            return;
+        }
+
+        StringBuilder cookie = new StringBuilder();
+        cookie.append(name).append('=').append(value == null ? "" : value);
+        String domain = call.getString("domain", "");
+        String path = call.getString("path", "/");
+        if (domain != null && !domain.isEmpty()) cookie.append("; domain=").append(domain);
+        if (path != null && !path.isEmpty()) cookie.append("; path=").append(path);
+        if (Boolean.TRUE.equals(call.getBoolean("secure", false))) cookie.append("; Secure");
+        Double expirationDate = call.getDouble("expirationDate");
+        if (expirationDate != null) {
+            cookie.append("; Max-Age=").append((int) Math.max(0, expirationDate - System.currentTimeMillis() / 1000.0));
+        }
+
+        CookieManager.getInstance().setCookie(url, cookie.toString());
+        CookieManager.getInstance().flush();
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void cookiesRemove(PluginCall call) {
+        String url = call.getString("url", "");
+        String name = call.getString("name", "");
+        if (url == null || url.isEmpty() || name == null || name.isEmpty()) {
+            call.reject("Cookie url and name are required");
+            return;
+        }
+        CookieManager.getInstance().setCookie(url, name + "=; Max-Age=0; path=/");
+        CookieManager.getInstance().flush();
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        call.resolve(result);
+    }
+
+    /**
+     * 批量删除 cookie：entries 是 [{url, name, domain?, path?}, ...]。
+     *
+     * 逐条删除每条都要过一次桥并在原生侧 flush 一次，登录通道切换要清几十条，
+     * 累加起来会超过调用方的截止时间，结果只清掉一半。这里在原生侧一次做完。
+     */
+    @PluginMethod
+    public void cookiesRemoveBatch(PluginCall call) {
+        JSArray entries = call.getArray("entries");
+        if (entries == null || entries.length() == 0) {
+            JSObject empty = new JSObject();
+            empty.put("ok", true);
+            empty.put("removed", 0);
+            call.resolve(empty);
+            return;
+        }
+        CookieManager manager = CookieManager.getInstance();
+        int removed = 0;
+        for (int index = 0; index < entries.length(); index++) {
+            JSONObject entry = entries.optJSONObject(index);
+            if (entry == null) continue;
+            String url = entry.optString("url", "");
+            String name = entry.optString("name", "");
+            if (url == null || url.isEmpty() || name == null || name.isEmpty()) continue;
+            // 域 cookie（SAPISID 这类挂在 .youtube.com 上的）只按 host 删不掉：调用方可以带上 domain。
+            String domain = entry.optString("domain", "");
+            String path = entry.optString("path", "/");
+            StringBuilder value = new StringBuilder(name).append("=; Max-Age=0");
+            if (path != null && !path.isEmpty()) value.append("; path=").append(path);
+            if (domain != null && !domain.isEmpty()) value.append("; domain=").append(domain);
+            manager.setCookie(url, value.toString());
+            removed++;
+        }
+        if (removed > 0) manager.flush();
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        result.put("removed", removed);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void httpRequest(PluginCall call) {
+        String url = call.getString("url", "");
+        String method = call.getString("method", "GET");
+        String bodyText = call.getString("bodyText", "");
+        String bodyBase64 = call.getString("bodyBase64", "");
+        String redirect = call.getString("redirect", "follow");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing request url");
+            return;
+        }
+
+        try {
+            Request.Builder builder = new Request.Builder().url(url);
+            JSObject headers = call.getObject("headers");
+            if (headers != null) {
+                Iterator<String> headerNames = headers.keys();
+                while (headerNames.hasNext()) {
+                    String headerName = headerNames.next();
+                    Object headerValue = headers.opt(headerName);
+                    if (headerValue != null) {
+                        builder.header(headerName, String.valueOf(headerValue));
+                    }
+                }
+            }
+            // OkHttp has no cookie jar here, so carry the WebView cookie store
+            // ourselves unless the caller injected an explicit Cookie header.
+            if (headers == null || headers.optString("cookie") == null) {
+                String storedCookies = CookieManager.getInstance().getCookie(url);
+                if (storedCookies != null && !storedCookies.isEmpty()) {
+                    builder.header("Cookie", storedCookies);
+                }
+            }
+
+            RequestBody body = null;
+            if (bodyBase64 != null && !bodyBase64.isEmpty()) {
+                body = RequestBody.create(MediaType.parse("application/octet-stream"), Base64.decode(bodyBase64, Base64.DEFAULT));
+            } else if (bodyText != null && !bodyText.isEmpty()) {
+                MediaType mediaType = MediaType.parse(headers == null ? null : headers.optString("content-type", null));
+                body = RequestBody.create(mediaType, bodyText);
+            }
+            String requestMethod = method == null ? "GET" : method;
+            if (body != null && "GET".equalsIgnoreCase(requestMethod)) {
+                // Bodian's playback endpoints use GET with a JSON body. OkHttp's public
+                // method() rejects that combination, so set the validated request body
+                // through its own setter after selecting GET.
+                builder.method("GET", null);
+                try {
+                    Method setBody = Request.Builder.class.getMethod("setBody$okhttp", RequestBody.class);
+                    setBody.invoke(builder, body);
+                } catch (ReflectiveOperationException error) {
+                    call.reject("GET request body is unsupported by this runtime", error);
+                    return;
+                }
+            } else {
+                builder.method(requestMethod, body);
+            }
+
+            OkHttpClient requestClient = client;
+            if ("manual".equals(redirect)) {
+                requestClient = client.newBuilder()
+                    .followRedirects(false)
+                    .followSslRedirects(false)
+                    .build();
+            }
+            // AI 请求可能远超默认的 45s 读超时，调用方可以按需放宽。
+            Integer timeoutMs = call.getInt("timeoutMs");
+            if (timeoutMs != null && timeoutMs > 0) {
+                requestClient = requestClient.newBuilder()
+                    .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .writeTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .build();
+            }
+
+            String requestUrl = url;
+            try (Response response = requestClient.newCall(builder.build()).execute()) {
+                // Preserve repeated headers (Set-Cookie) by handing JS an array
+                // instead of an object, which would collapse duplicates.
+                JSArray responseHeaders = new JSArray();
+                for (String name : response.headers().names()) {
+                    for (String value : response.headers().values(name)) {
+                        JSObject headerEntry = new JSObject();
+                        headerEntry.put("name", name);
+                        headerEntry.put("value", value);
+                        responseHeaders.put(headerEntry);
+                    }
+                }
+                storeResponseCookies(requestUrl, response);
+                ResponseBody responseBody = response.body();
+                byte[] bytes = responseBody == null ? new byte[0] : responseBody.bytes();
+                JSObject result = new JSObject();
+                result.put("status", response.code());
+                result.put("headers", responseHeaders);
+                result.put("bodyBase64", Base64.encodeToString(bytes, Base64.NO_WRAP));
+                call.resolve(result);
+            }
+        } catch (IOException | IllegalArgumentException error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    private void storeResponseCookies(String requestUrl, Response response) {
+        List<String> setCookies = response.headers().values("Set-Cookie");
+        if (setCookies.isEmpty()) return;
+        CookieManager manager = CookieManager.getInstance();
+        boolean changed = false;
+        for (String rawCookie : setCookies) {
+            String cookie = normalizeCookieForUrl(requestUrl, rawCookie);
+            if (cookie == null || cookie.isEmpty()) continue;
+            manager.setCookie(requestUrl, cookie);
+            changed = true;
+        }
+        if (changed) manager.flush();
+    }
+
+    // CookieManager ignores a Set-Cookie that has no Path/Domain even though
+    // every real response carries them, but some providers omit Path entirely.
+    private static String normalizeCookieForUrl(String requestUrl, String rawCookie) {
+        if (rawCookie == null || rawCookie.isEmpty()) return null;
+        boolean hasPath = false;
+        for (String attribute : rawCookie.split(";")) {
+            if (attribute.trim().toLowerCase().startsWith("path=")) {
+                hasPath = true;
+                break;
+            }
+        }
+        if (hasPath) return rawCookie;
+        return rawCookie + "; Path=/";
+    }
+
+    /**
+     * 起播前先把音频焦点拿到手（JS 在调用 <audio>.play() 之前调）。
+     *
+     * 不这么做的话：WebView 先起播拿到焦点，前台服务随后再要焦点，系统会把
+     * AUDIOFOCUS_LOSS 发给 WebView，Chromium 自动暂停 —— 「响一秒就停」的根因。
+     */
+    @PluginMethod
+    public void prepareAudioFocus(PluginCall call) {
+        try {
+            FoliaPlaybackService.ensureAudioFocus(getContext());
+        } catch (Exception error) {
+            // 拿不到焦点也继续播，别把播放拦下来
+        }
+        call.resolve();
+    }
+
+    /** 打开系统浏览器（应用内更新提示里的「去下载 / 打开官网」走这条）。 */
+    @PluginMethod
+    public void openExternalUrl(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing url");
+            return;
+        }
+        try {
+            android.content.Intent intent = new android.content.Intent(
+                android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("无法打开浏览器：" + error.getMessage(), error);
+        }
+    }
+
+    /** 当前安装包的版本名/版本号：更新检查要和站点版本比，不能在 JS 里硬编码。 */
+    @PluginMethod
+    public void getAppVersion(PluginCall call) {
+        JSObject result = new JSObject();
+        try {
+            android.content.pm.PackageInfo info = getContext().getPackageManager()
+                .getPackageInfo(getContext().getPackageName(), 0);
+            long code = android.os.Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            result.put("versionName", info.versionName == null ? "" : info.versionName);
+            result.put("versionCode", code);
+        } catch (Exception error) {
+            result.put("versionName", "");
+            result.put("versionCode", 0L);
+        }
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void scanLocalAudio(PluginCall call) {
+        String alias = audioPermissionAlias();
+        if (getPermissionState(alias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(alias, call, "audioPermissionCallback");
+            return;
+        }
+        resolveLocalAudioScan(call);
+    }
+
+    /**
+     * Android 13 起读音频用 READ_MEDIA_AUDIO，之前的版本用 READ_EXTERNAL_STORAGE。
+     *
+     * 这两个权限不能放在同一个别名里：被申请的那一个拿到授权后，另一个在系统看来仍是
+     * 拒绝，而 Capacitor 对同一别名取「全部授权才算授权」，结果永远停在 PROMPT，
+     * 扫描会被误判成「权限被拒」。所以按系统版本分开取别名。
+     */
+    private String audioPermissionAlias() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ? "audio" : "audioLegacy";
+    }
+
+    @PluginMethod
+    public void pickAudioFiles(PluginCall call) {
+        if (audioPickerGateOpen()) {
+            call.reject("Audio picker is already open");
+            return;
+        }
+        // 用 Capacitor 自己的活动回调机制（@ActivityCallback + startActivityForResult），
+        // 而不是在 load() 里直接 registerForActivityResult：后者依赖活动生命周期时序，
+        // 在部分设备上会拿不到可用的启动器，表现就是「点了导入毫无反应」。
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("audio/*")
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        openAudioPickerSafely(call, intent, "handlePickedAudio");
+    }
+
+    /** 选择整个文件夹；原生侧递归扫描其中的音频，用户可以一次导入整张专辑/目录。 */
+    @PluginMethod
+    public void pickAudioFolder(PluginCall call) {
+        if (audioPickerGateOpen()) {
+            call.reject("Audio picker is already open");
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        openAudioPickerSafely(call, intent, "handlePickedAudioFolder");
+    }
+
+    // ── SAF 选择器打开防闪退 ──────────────────────────────────────────
+    // MagicOS（荣耀 Magic7）等国产 ROM 会裁剪/限制 DocumentsUI：
+    //   · ACTION_OPEN_DOCUMENT_TREE 无 handler → startActivityForResult 抛 ActivityNotFoundException
+    //   · 活动状态不佳时抛 IllegalStateException
+    // 不接住就是点击瞬间闪退。这里统一转成 JS 可感知的错误 + 落崩溃日志，并做 GET_CONTENT 降级。
+    private long audioPickerOpenedAt = 0;
+    private static final long AUDIO_PICKER_OPEN_TIMEOUT_MS = 90_000L;
+    /** SAF 递归扫描的深度/数量上限：部分 DocumentsProvider 会给出循环子树，无上限会卡死/爆内存。 */
+    private static final int SAF_TREE_MAX_DEPTH = 12;
+    private static final int SAF_TREE_MAX_FILES = 3000;
+
+    private boolean audioPickerGateOpen() {
+        if (!isAudioPickerOpen) return false;
+        // 上一轮回调丢了（部分 ROM 在 picker 上杀进程重建后 onActivityResult 不会回来），
+        // 超时后放行，否则「选择文件夹」永远提示 already open。
+        if (System.currentTimeMillis() - audioPickerOpenedAt > AUDIO_PICKER_OPEN_TIMEOUT_MS) {
+            isAudioPickerOpen = false;
+            return false;
+        }
+        return true;
+    }
+
+    private void openAudioPickerSafely(PluginCall call, Intent intent, String callback) {
+        final Activity activity = getActivity();
+        if (activity == null) {
+            isAudioPickerOpen = false;
+            call.reject("Activity is not available");
+            return;
+        }
+        try {
+            audioPickerOpenedAt = System.currentTimeMillis();
+            isAudioPickerOpen = true;
+            startActivityForResult(call, intent, callback);
+        } catch (ActivityNotFoundException error) {
+            isAudioPickerOpen = false;
+            try { CrashDiagnostics.record(getContext(), "audio-picker", "main", error); } catch (Exception ignored) { }
+            if ("handlePickedAudioFolder".equals(callback)) {
+                // 降级成选文件（GET_CONTENT 所有 ROM 都有），用户仍能一次选多首
+                Intent fallback = new Intent(Intent.ACTION_GET_CONTENT)
+                    .addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType("audio/*")
+                    .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                try {
+                    audioPickerOpenedAt = System.currentTimeMillis();
+                    isAudioPickerOpen = true;
+                    startActivityForResult(call, fallback, "handlePickedAudio");
+                } catch (Exception fallbackError) {
+                    isAudioPickerOpen = false;
+                    call.reject("设备没有可用的文件选择器：" + fallbackError.getMessage(), fallbackError);
+                }
+                return;
+            }
+            call.reject("设备没有可用的文件选择器：" + error.getMessage(), error);
+        } catch (Exception error) {
+            isAudioPickerOpen = false;
+            try { CrashDiagnostics.record(getContext(), "audio-picker", "main", error); } catch (Exception ignored) { }
+            call.reject("打开文件选择器失败：" + (error.getMessage() == null ? error.toString() : error.getMessage()), error);
+        }
+    }
+
+    /** 供 WebView 重建导入音频的流地址（端口每次启动都可能不同）。 */
+    @PluginMethod
+    public void localAudioServerPort(PluginCall call) {
+        try {
+            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            int port = localAudioServer.start();
+            JSObject result = new JSObject();
+            result.put("port", port);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    /** 自适应屏幕分辨率开关：关闭＝跟随系统原生布局，打开＝沉浸式全屏铺满。 */
+    /** Wraps an issued Kuwo/Bodian audio URL behind the local Range-capable stream server. */
+    @PluginMethod
+    public void registerRemoteAudio(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing remote audio url");
+            return;
+        }
+        try {
+            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            String localUrl = localAudioServer.registerRemoteAudio(url);
+            JSObject result = new JSObject();
+            result.put("url", localUrl);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    /**
+     * 把整首远端音频先下到本地，再把本地流地址交回去（见 LocalAudioServer#registerDownloadedAudio）。
+     * 用于 YouTube Music：它的直链按取地址时的出口 IP 签发，分片过桥取会从第二片起 403。
+     */
+    @PluginMethod
+    public void registerDownloadedAudio(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing audio url");
+            return;
+        }
+        Map<String, String> headers = new HashMap<>();
+        JSObject rawHeaders = call.getObject("headers");
+        if (rawHeaders != null) {
+            Iterator<String> names = rawHeaders.keys();
+            while (names.hasNext()) {
+                String name = names.next();
+                Object value = rawHeaders.opt(name);
+                if (name != null && value != null) headers.put(name, String.valueOf(value));
+            }
+        }
+        try {
+            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            String localUrl = localAudioServer.registerDownloadedAudio(url, headers);
+            JSObject result = new JSObject();
+            result.put("url", localUrl);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    /** 只查音频缓存：命中直接返回本地流地址（不联网）。 */
+    @PluginMethod
+    public void getCachedAudio(PluginCall call) {
+        String key = call.getString("key", "");
+        if (key == null || key.isEmpty()) {
+            call.resolve();
+            return;
+        }
+        try {
+            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            String localUrl = localAudioServer.cachedAudioUrl(key);
+            if (localUrl == null) {
+                call.resolve();
+                return;
+            }
+            JSObject result = new JSObject();
+            result.put("url", localUrl);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.resolve();
+        }
+    }
+
+    /** 按稳定 key（如 ytm:videoId）缓存音频，重复播放直接复用本地文件。 */
+    @PluginMethod
+    public void registerCachedAudio(PluginCall call) {
+        String key = call.getString("key", "");
+        String url = call.getString("url", "");
+        if (key == null || key.isEmpty() || url == null || url.isEmpty()) {
+            call.reject("Missing audio cache key or url");
+            return;
+        }
+        Map<String, String> headers = new HashMap<>();
+        JSObject rawHeaders = call.getObject("headers");
+        if (rawHeaders != null) {
+            Iterator<String> names = rawHeaders.keys();
+            while (names.hasNext()) {
+                String name = names.next();
+                Object value = rawHeaders.opt(name);
+                if (name != null && value != null) headers.put(name, String.valueOf(value));
+            }
+        }
+        final String downloadKey = key;
+        final String downloadUrl = url;
+        final Map<String, String> downloadHeaders = headers;
+        if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+        final LocalAudioServer server = localAudioServer;
+        /*
+         * 【为什么必须切后台线程】Capacitor 的 @PluginMethod 默认在 UI 主线程执行，
+         * 而这里要同步下载一整首歌（FLAC 几十 MB，分钟级）。原来的实现直接在主线程
+         * 下载：JS 侧声称的“并发 2”实际在主线程串行排队，排队期间整个 bridge
+         * （播放控制、通知、查缓存……）全部卡死，App 被预取拖到卡顿 —— 预取不但
+         * 没效果，反而是负效果。下载必须放 bridge 线程池，完成后在回调线程 resolve。
+         */
+        bridge.execute(() -> {
+            try {
+                String localUrl = server.registerCachedAudio(downloadKey, downloadUrl, downloadHeaders);
+                JSObject result = new JSObject();
+                result.put("url", localUrl);
+                call.resolve(result);
+            } catch (Exception error) {
+                call.reject(error.getMessage(), error);
+            }
+        });
+    }
+
+    @PluginMethod
+    public void getPlaybackDiagnostics(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("cover", playbackArtworkCover);
+        result.put("status", playbackArtworkStatus);
+        result.put("detail", playbackArtworkDetail);
+        result.put("at", playbackArtworkAt);
+        result.put("applied", playbackArtworkApplied);
+        result.put("power", FoliaPlaybackService.getPowerDiagnostic());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void exitApp(PluginCall call) {
+        Activity activity = getActivity();
+        call.resolve();
+        if (activity != null) {
+            CrashDiagnostics.recordText(
+                getContext(),
+                "app-exit",
+                "main",
+                "js-exit-app",
+                "JS back handler requested exit",
+                "FoliaCorePlugin.exitApp"
+            );
+            activity.runOnUiThread(activity::finish);
+        }
+    }
+
+    /**
+     * 「导出诊断数据」：把报告写进缓存目录的 txt，再用 FileProvider 拉起系统分享面板。
+     *
+     * 报告正文由 WebView 侧生成后原样传入，这里只负责落盘和分享。文件名做白名单清洗，
+     * 避免调用方传来的名字带路径分隔符或被 `..` 穿越到缓存目录之外。
+     */
+    @PluginMethod
+    public void shareTextFile(PluginCall call) {
+        String rawName = call.getString("filename", "folia-diagnostics.txt");
+        String content = call.getString("content", "");
+        String title = call.getString("title", "Folia diagnostics");
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Activity is not available");
+            return;
+        }
+        try {
+            File directory = new File(getContext().getCacheDir(), "diagnostics");
+            if (!directory.exists() && !directory.mkdirs()) {
+                call.reject("Could not create diagnostics directory");
+                return;
+            }
+            File target = new File(directory, sanitizeDiagnosticFileName(rawName));
+            try (FileOutputStream output = new FileOutputStream(target)) {
+                output.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            Uri uri = FileProvider.getUriForFile(
+                getContext(),
+                getContext().getPackageName() + ".fileprovider",
+                target
+            );
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("text/plain");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.putExtra(Intent.EXTRA_SUBJECT, title);
+            send.setClipData(ClipData.newUri(getContext().getContentResolver(), target.getName(), uri));
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(send, title);
+            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            activity.startActivity(chooser);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not share diagnostics: " + error.getMessage(), error);
+        }
+    }
+
+    /** 「删除诊断」：清掉之前导出到缓存目录的诊断 txt，返回实际删除的文件数。 */
+    @PluginMethod
+    public void deleteDiagnosticFiles(PluginCall call) {
+        int deleted = 0;
+        File directory = new File(getContext().getCacheDir(), "diagnostics");
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile() && file.delete()) deleted++;
+            }
+        }
+        JSObject result = new JSObject();
+        result.put("deleted", deleted);
+        call.resolve(result);
+    }
+
+    /** 只保留文件名，挡掉路径分隔符和 `..`，并保证以 .txt 结尾。 */
+    private static String sanitizeDiagnosticFileName(String rawName) {
+        String name = rawName == null ? "" : rawName.trim();
+        name = name.replace('/', '_').replace('\\', '_');
+        if (name.isEmpty() || name.contains("..")) name = "folia-diagnostics.txt";
+        if (!name.toLowerCase(Locale.ROOT).endsWith(".txt")) name = name + ".txt";
+        return name;
+    }
+
+    @PluginMethod
+    public void getPhoneFitLayout(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("enabled", PhoneLayoutOrientation.isEnabled(getContext()));
+        result.put("orientation", PhoneLayoutOrientation.getOrientation(getContext()));
+        call.resolve(result);
+    }
+
+    /**
+     * 屏幕常亮：直接操作窗口标志。
+     *
+     * 网页的 Screen Wake Lock 在页面隐藏时会被浏览器释放，而且要重新申请；窗口标志是系统级的，
+     * 切页、锁屏前都有效，所以安卓这边以它为准（JS 侧在拿不到插件时才退回 Wake Lock）。
+     */
+    @PluginMethod
+    public void setKeepScreenOn(PluginCall call) {
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        Activity activity = getActivity();
+        if (activity != null) {
+            activity.runOnUiThread(() -> {
+                if (enabled) {
+                    activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                } else {
+                    activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                }
+            });
+        }
+        JSObject result = new JSObject();
+        result.put("enabled", enabled);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void setPhoneFitLayout(PluginCall call) {
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        String orientation = call.getString("orientation", PhoneLayoutOrientation.getOrientation(getContext()));
+        PhoneLayoutOrientation.update(getContext(), enabled, orientation);
+        Activity activity = getActivity();
+        if (activity != null) {
+            activity.runOnUiThread(() -> {
+                PhoneLayoutOrientation.apply(activity);
+                // 挖孔适配跟手机适配开关无关，这里只是顺手在开关变化时再铺一次。
+                PhoneFitCutout.apply(activity);
+                WebView webView = getBridge() == null ? null : getBridge().getWebView();
+                if (webView != null && AdaptiveLayout.isEnabled(getContext())) {
+                    AdaptiveLayout.apply(activity, webView, true);
+                }
+            });
+        }
+        JSObject result = new JSObject();
+        result.put("enabled", enabled);
+        result.put("orientation", PhoneLayoutOrientation.getOrientation(getContext()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void setAdaptiveLayout(PluginCall call) {
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        try {
+            AdaptiveLayout.setEnabled(getContext(), enabled);
+            Activity activity = getActivity();
+            if (activity != null) {
+                WebView webView = getBridge() == null ? null : getBridge().getWebView();
+                // 系统栏显隐必须在主线程上做。
+                activity.runOnUiThread(() -> AdaptiveLayout.apply(activity, webView, enabled));
+            }
+            JSObject result = new JSObject();
+            result.put("enabled", enabled);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    @PluginMethod
+    public void getAdaptiveLayout(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("enabled", AdaptiveLayout.isEnabled(getContext()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void getDisplayCutout(PluginCall call) {
+        try {
+            call.resolve(JSObject.fromJSONObject(PhoneFitCutout.describe(getActivity())));
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    @ActivityCallback
+    private void handlePickedAudio(PluginCall call, ActivityResult activityResult) {
+        isAudioPickerOpen = false;
+        if (call == null) return;
+
+        // -1 = RESULT_OK，0 = RESULT_CANCELED。区分「用户取消」和「选完了却没数据」，
+        // 否则两种情况的返回值一模一样，只能靠猜。
+        int resultCode = activityResult == null ? Activity.RESULT_CANCELED : activityResult.getResultCode();
+        List<Uri> uris = new ArrayList<>();
+        Intent data = activityResult == null ? null : activityResult.getData();
+        if (data != null) {
+            ClipData clipData = data.getClipData();
+            if (clipData != null) {
+                for (int index = 0; index < clipData.getItemCount(); index += 1) {
+                    Uri uri = clipData.getItemAt(index).getUri();
+                    if (uri != null) uris.add(uri);
+                }
+            } else if (data.getData() != null) {
+                uris.add(data.getData());
+            }
+        }
+
+        completePickedAudioImport(call, uris, resultCode);
+    }
+
+    @ActivityCallback
+    private void handlePickedAudioFolder(PluginCall call, ActivityResult activityResult) {
+        isAudioPickerOpen = false;
+        if (call == null) return;
+        int resultCode = activityResult == null ? Activity.RESULT_CANCELED : activityResult.getResultCode();
+        List<Uri> uris = new ArrayList<>();
+        Intent data = activityResult == null ? null : activityResult.getData();
+        Uri treeUri = data == null ? null : data.getData();
+        if (treeUri != null) {
+            try {
+                getContext().getContentResolver().takePersistableUriPermission(
+                    treeUri,
+                    data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION
+                );
+            } catch (Exception ignored) {
+                // Some providers do not offer persistable grants; the current grant is still usable.
+            }
+            // ★ getTreeDocumentId 对部分 ROM 返回的畸形 tree URI 会抛 IllegalArgumentException，
+            //   不接住就是「选完文件夹确认的瞬间闪退」（MagicOS 实测）。
+            try {
+                collectAudioDocuments(treeUri, DocumentsContract.getTreeDocumentId(treeUri), uris, 0);
+            } catch (Exception error) {
+                try { CrashDiagnostics.record(getContext(), "audio-picker-scan", "main", error); } catch (Exception ignored) { }
+            }
+        }
+        completePickedAudioImport(call, uris, resultCode);
+    }
+
+    private void collectAudioDocuments(Uri treeUri, String parentDocumentId, List<Uri> output, int depth) {
+        // 深度/数量双上限：循环子树 + 超大目录不至于卡死或耗尽内存
+        if (depth > SAF_TREE_MAX_DEPTH || output.size() >= SAF_TREE_MAX_FILES) return;
+        Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId);
+        String[] projection = new String[]{
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE
+        };
+        try (Cursor cursor = getContext().getContentResolver().query(childrenUri, projection, null, null, null)) {
+            if (cursor == null) return;
+            while (cursor.moveToNext()) {
+                if (output.size() >= SAF_TREE_MAX_FILES) return;
+                String documentId = cursor.getString(0);
+                String displayName = cursor.getString(1);
+                String mimeType = cursor.getString(2);
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType)) {
+                    collectAudioDocuments(treeUri, documentId, output, depth + 1);
+                    continue;
+                }
+                if (isAudioDocument(displayName, mimeType)) {
+                    output.add(DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId));
+                }
+            }
+        } catch (Exception ignored) {
+            // A provider can deny one subtree without invalidating the rest of the selection.
+        }
+    }
+
+    private static boolean isAudioDocument(String displayName, String mimeType) {
+        if (mimeType != null && mimeType.startsWith("audio/")) return true;
+        String lower = displayName == null ? "" : displayName.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".mp3") || lower.endsWith(".flac") || lower.endsWith(".wav")
+            || lower.endsWith(".m4a") || lower.endsWith(".aac") || lower.endsWith(".ogg")
+            || lower.endsWith(".opus") || lower.endsWith(".ape") || lower.endsWith(".wma");
+    }
+
+    private void completePickedAudioImport(PluginCall call, List<Uri> uris, int resultCode) {
+        if (uris.isEmpty()) {
+            JSObject result = new JSObject();
+            result.put("tracks", new JSArray());
+            result.put("cancelled", resultCode != Activity.RESULT_OK);
+            result.put("picked", 0);
+            result.put("resultCode", resultCode);
+            if (resultCode == Activity.RESULT_OK) {
+                result.put("error", "Picker returned RESULT_OK without a readable document uri");
+            }
+            call.resolve(result);
+            return;
+        }
+
+        final Activity activity = getActivity();
+        new Thread(() -> {
+          try {
+            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            int port = localAudioServer.start();
+            File directory = localAudioServer.importedAudioDirectory();
+            ContentResolver resolver = getContext().getContentResolver();
+            JSArray tracks = new JSArray();
+            JSArray failures = new JSArray();
+            int copied = 0;
+
+            for (Uri uri : uris) {
+                try {
+                    String displayName = queryDisplayName(resolver, uri);
+                    long fileSize = queryFileSize(resolver, uri);
+                    if (displayName == null || displayName.isEmpty()) displayName = "track-" + System.currentTimeMillis();
+                    String safeName = "imported-" + stableFileId(displayName, fileSize, directory);
+                    File target = new File(directory, safeName);
+                    if (!target.isFile() || target.length() != fileSize) {
+                        try (InputStream source = resolver.openInputStream(uri);
+                             OutputStream sink = new FileOutputStream(target)) {
+                            if (source == null) continue;
+                            byte[] buffer = new byte[128 * 1024];
+                            int read;
+                            while ((read = source.read(buffer)) != -1) {
+                                sink.write(buffer, 0, read);
+                            }
+                        }
+                    }
+
+                    JSObject track = new JSObject();
+                    track.put("id", safeName);
+                    track.put("fileName", displayName);
+                    track.put("fileSize", target.length());
+                    track.put("mimeType", LocalAudioServer.guessMimeType(safeName));
+                    track.put("url", "http://127.0.0.1:" + port + "/audio/" + safeName);
+                    tracks.put(track);
+                    copied += 1;
+                } catch (Exception error) {
+                    // 单个文件读不了不该让整批失败，但必须把原因带回去，
+                    // 否则界面只会「什么都没发生」。
+                    JSObject failure = new JSObject();
+                    failure.put("uri", String.valueOf(uri));
+                    failure.put("message", error.getMessage() == null ? error.toString() : error.getMessage());
+                    failures.put(failure);
+                }
+            }
+
+            JSObject result = new JSObject();
+            result.put("tracks", tracks);
+            result.put("port", port);
+            result.put("picked", uris.size());
+            result.put("copied", copied);
+            result.put("failures", failures);
+            result.put("resultCode", resultCode);
+            if (activity != null) activity.runOnUiThread(() -> call.resolve(result));
+            else call.resolve(result);
+          } catch (Exception error) {
+            String message = error.getMessage() == null ? error.toString() : error.getMessage();
+            if (activity != null) activity.runOnUiThread(() -> call.reject(message, error));
+            else call.reject(message, error);
+          }
+        }, "folia-audio-import").start();
+    }
+
+    private static String stableFileId(String displayName, long fileSize, File directory) {
+        String candidate = displayName.replaceAll("[^A-Za-z0-9._-]", "_");
+        if (candidate.length() > 60) {
+            candidate = candidate.substring(candidate.length() - 60);
+        }
+        int dot = candidate.lastIndexOf('.');
+        String base = dot > 0 ? candidate.substring(0, dot) : candidate;
+        String extension = dot > 0 ? candidate.substring(dot) : "";
+        String stamp = Integer.toHexString((displayName + ':' + fileSize).hashCode());
+        String name = base + "-" + stamp + extension;
+        if (new File(directory, name).isFile()) return name;
+        return name;
+    }
+
+    private static String queryDisplayName(ContentResolver resolver, Uri uri) {
+        try (Cursor cursor = resolver.query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+        } catch (Exception ignored) {
+        }
+        String last = uri.getLastPathSegment();
+        return last == null ? null : last.substring(last.lastIndexOf('/') + 1);
+    }
+
+    private static long queryFileSize(ContentResolver resolver, Uri uri) {
+        try (Cursor cursor = resolver.query(uri, new String[]{OpenableColumns.SIZE}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) return cursor.getLong(0);
+        } catch (Exception ignored) {
+        }
+        return -1;
+    }
+
+    @PluginMethod
+    public void updatePlaybackState(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            && getPermissionState("notifications") != PermissionState.GRANTED) {
+            requestPermissionForAlias("notifications", call, "notificationsPermissionCallback");
+            return;
+        }
+        applyPlaybackState(call);
+    }
+
+    @PermissionCallback
+    private void notificationsPermissionCallback(PluginCall call) {
+        applyPlaybackState(call);
+    }
+
+    private void applyPlaybackState(PluginCall call) {
+        Intent intent = new Intent(getContext(), FoliaPlaybackService.class);
+        intent.putExtra("title", call.getString("title", ""));
+        intent.putExtra("artist", call.getString("artist", ""));
+        intent.putExtra("album", call.getString("album", ""));
+        intent.putExtra("coverUrl", call.getString("coverUrl", ""));
+        intent.putExtra("songKey", call.getString("songKey", ""));
+        intent.putExtra("playing", Boolean.TRUE.equals(call.getBoolean("playing", false)));
+        Double position = call.getDouble("position");
+        Double duration = call.getDouble("duration");
+        intent.putExtra("position", position == null ? 0L : position.longValue());
+        intent.putExtra("duration", duration == null ? 0L : duration.longValue());
+        ContextCompat.startForegroundService(getContext(), intent);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void clearPlaybackState(PluginCall call) {
+        getContext().stopService(new Intent(getContext(), FoliaPlaybackService.class));
+        call.resolve();
+    }
+
+    @PermissionCallback
+    private void audioPermissionCallback(PluginCall call) {
+        if (getPermissionState(audioPermissionAlias()) == PermissionState.GRANTED) {
+            resolveLocalAudioScan(call);
+        } else {
+            call.reject("Audio permission denied");
+        }
+    }
+
+    private void resolveLocalAudioScan(PluginCall call) {
+        try {
+            if (localAudioServer == null) {
+                localAudioServer = new LocalAudioServer(getContext());
+            }
+            int port = localAudioServer.start();
+            JSArray tracks = new JSArray();
+            String[] projection = new String[]{
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.DURATION,
+                MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.MIME_TYPE
+            };
+            try (Cursor cursor = getContext().getContentResolver().query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                MediaStore.Audio.Media.IS_MUSIC + " != 0",
+                null,
+                MediaStore.Audio.Media.TITLE + " COLLATE NOCASE ASC"
+            )) {
+                if (cursor != null) {
+                    int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
+                    int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME);
+                    int titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
+                    int artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST);
+                    int albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM);
+                    int durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
+                    int sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE);
+                    int mimeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE);
+                    while (cursor.moveToNext()) {
+                        long id = cursor.getLong(idColumn);
+                        JSObject track = new JSObject();
+                        track.put("id", String.valueOf(id));
+                        track.put("fileName", cursor.getString(nameColumn));
+                        track.put("title", cursor.getString(titleColumn));
+                        track.put("artist", cursor.getString(artistColumn));
+                        track.put("album", cursor.getString(albumColumn));
+                        track.put("duration", cursor.getLong(durationColumn));
+                        track.put("fileSize", cursor.getLong(sizeColumn));
+                        track.put("mimeType", cursor.getString(mimeColumn));
+                        track.put("url", "http://127.0.0.1:" + port + "/audio/" + id);
+                        tracks.put(track);
+                    }
+                }
+            }
+            JSObject result = new JSObject();
+            result.put("tracks", tracks);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    /**
+     * 删除「导入文件夹」时复制进私有目录的音频副本。
+     *
+     * 只删 App 自己的副本，绝不碰用户的原文件；扫描设备音乐库（MediaStore）得到的歌不在
+     * 这里删除，它们只是引用，用户的原文件必须保留。
+     */
+    /** Returns the bounded native crash trail for the settings diagnostics report. */
+    @PluginMethod
+    public void getCrashDiagnostics(PluginCall call) {
+        CrashDiagnostics.collectHistoricalExits(getContext());
+        JSObject result = new JSObject();
+        result.put("history", CrashDiagnostics.read(getContext()));
+        result.put("heartbeat", CrashDiagnostics.readHeartbeat(getContext()));
+        result.put("previousHeartbeat", CrashDiagnostics.readPreviousHeartbeat(getContext()));
+        result.put("serviceHeartbeat", CrashDiagnostics.readServiceHeartbeat(getContext()));
+        result.put("previousServiceHeartbeat", CrashDiagnostics.readPreviousServiceHeartbeat(getContext()));
+        call.resolve(result);
+    }
+
+    /** Small 10-second breadcrumb: what was on screen and playing before an abrupt process death. */
+    @PluginMethod
+    public void recordPlaybackHeartbeat(PluginCall call) {
+        try {
+            JSObject payload = new JSObject();
+            payload.put("at", System.currentTimeMillis());
+            payload.put("visualizer", call.getString("visualizer", "unknown"));
+            payload.put("background", call.getString("background", "unknown"));
+            payload.put("playing", call.getBoolean("playing", false));
+            payload.put("visibility", call.getString("visibility", "unknown"));
+            Activity activity = getActivity();
+            payload.put(
+                "foreground",
+                activity != null && !activity.isFinishing() && activity.hasWindowFocus()
+            );
+            PowerManager powerManager = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+            payload.put("screenOn", powerManager != null && powerManager.isInteractive());
+            CrashDiagnostics.recordHeartbeat(getContext(), payload.toString());
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Failed to record playback heartbeat", error);
+        }
+    }
+
+    /** Clears only the crash trail; normal app data and sessions are untouched. */
+    @PluginMethod
+    public void clearCrashDiagnostics(PluginCall call) {
+        CrashDiagnostics.clear(getContext());
+        call.resolve();
+    }
+
+    /** Stores a WebView error next to native crashes so the next diagnostic copy includes it. */
+    @PluginMethod
+    public void recordRuntimeDiagnostic(PluginCall call) {
+        CrashDiagnostics.recordText(
+            getContext(),
+            call.getString("source", "webview"),
+            call.getString("thread", "webview"),
+            call.getString("type", "error"),
+            call.getString("message", ""),
+            call.getString("stack", "")
+        );
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void deleteImportedAudio(PluginCall call) {
+        JSArray refs = call.getArray("refs", new JSArray());
+        JSArray deleted = new JSArray();
+        JSArray failed = new JSArray();
+        try {
+            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            File directory = localAudioServer.importedAudioDirectory();
+            for (int index = 0; index < refs.length(); index += 1) {
+                String ref = refs.getString(index);
+                File target = resolveImportedFile(directory, ref);
+                if (target == null) {
+                    failed.put(ref);
+                    continue;
+                }
+                // 已经不在了也算成功，重复删除不该被当成错误。
+                if (!target.exists() || target.delete()) {
+                    deleted.put(ref);
+                } else {
+                    failed.put(ref);
+                }
+            }
+            JSObject result = new JSObject();
+            result.put("deleted", deleted);
+            result.put("failed", failed);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject(error.getMessage(), error);
+        }
+    }
+
+    /** 只接受 App 自己写出的 imported-* 文件名，挡掉任何路径穿越。 */
+    private static File resolveImportedFile(File directory, String ref) {
+        if (ref == null || !ref.startsWith("imported-")) return null;
+        if (ref.contains("/") || ref.contains("\\") || ref.contains("..")) return null;
+        return new File(directory, ref);
+    }
+
+    private List<JSObject> parseCookieHeader(String header, String domain) {
+        List<JSObject> cookies = new ArrayList<>();
+        if (header == null || header.isEmpty()) return cookies;
+        String[] pairs = header.split(";");
+        for (String pair : pairs) {
+            int separator = pair.indexOf('=');
+            if (separator <= 0) continue;
+            String name = pair.substring(0, separator).trim();
+            String value = pair.substring(separator + 1).trim();
+            if (name.isEmpty()) continue;
+            JSObject cookie = new JSObject();
+            cookie.put("name", name);
+            cookie.put("value", value);
+            cookie.put("domain", domain == null ? "" : domain);
+            cookie.put("path", "/");
+            cookie.put("secure", true);
+            cookie.put("httpOnly", false);
+            cookies.add(cookie);
+        }
+        return cookies;
+    }
+
+    /** 运行日志落盘：优先写用户目录，失败则退回应用外部目录。 */
+    @PluginMethod
+    public void appendRuntimeLog(PluginCall call) {
+        final String text = call.getString("text", "");
+        final String fileName = call.getString("fileName", "Mineradio-log.txt");
+        if (text == null || text.isEmpty()) {
+            call.resolve();
+            return;
+        }
+        final String[] preferred = new String[] {
+            "/storage/emulated/0/mr\u4fee\u6539\u4e13\u7528\u8def\u5f84/" + fileName,
+            "/sdcard/mr\u4fee\u6539\u4e13\u7528\u8def\u5f84/" + fileName
+        };
+        final java.util.List<String> tried = new java.util.ArrayList<>();
+        for (String path : preferred) {
+            if (appendTo(path, text)) {
+                JSObject result = new JSObject();
+                result.put("ok", true);
+                result.put("path", path);
+                call.resolve(result);
+                return;
+            }
+            tried.add(path);
+        }
+        // 兜底：应用自己的外部目录（一定可写）
+        try {
+            java.io.File dir = getContext().getExternalFilesDir(null);
+            if (dir != null) {
+                String fallback = new java.io.File(dir, fileName).getAbsolutePath();
+                if (appendTo(fallback, text)) {
+                    JSObject result = new JSObject();
+                    result.put("ok", true);
+                    result.put("path", fallback);
+                    result.put("fallback", true);
+                    call.resolve(result);
+                    return;
+                }
+                tried.add(fallback);
+            }
+        } catch (Throwable ignored) {
+        }
+        call.reject("write failed: " + tried);
+    }
+
+    private static boolean appendTo(String path, String text) {
+        try {
+            java.io.File file = new java.io.File(path);
+            java.io.File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(file, true)) {
+                out.write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                out.flush();
+            }
+            return true;
+        } catch (Throwable error) {
+            return false;
+        }
+    }
+}

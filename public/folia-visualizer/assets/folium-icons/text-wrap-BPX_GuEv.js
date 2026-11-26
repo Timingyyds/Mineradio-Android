@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`text-wrap`,size:24,node:[[`path`,{d:`m16 16-3 3 3 3`,key:`117b85`}],[`path`,{d:`M3 12h14.5a1 1 0 0 1 0 7H13`,key:`18xa6z`}],[`path`,{d:`M3 19h6`,key:`1ygdsz`}],[`path`,{d:`M3 5h18`,key:`1u36vt`}]],aliases:[`wrap-text`]};t.node;var n=e(t);export{t as __iconData,n as default};

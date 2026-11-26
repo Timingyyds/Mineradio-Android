@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`kanban`,size:24,node:[[`path`,{d:`M5 3v14`,key:`9nsxs2`}],[`path`,{d:`M12 3v8`,key:`1h2ygw`}],[`path`,{d:`M19 3v18`,key:`1sk56x`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

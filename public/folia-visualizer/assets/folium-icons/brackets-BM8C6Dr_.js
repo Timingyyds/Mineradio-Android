@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`brackets`,size:24,node:[[`path`,{d:`M16 3h3a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-3`,key:`1kt8lf`}],[`path`,{d:`M8 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h3`,key:`gduv9`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

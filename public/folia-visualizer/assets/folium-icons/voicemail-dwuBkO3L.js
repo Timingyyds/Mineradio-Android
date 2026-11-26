@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`voicemail`,size:24,node:[[`circle`,{cx:`6`,cy:`12`,r:`4`,key:`1ehtga`}],[`circle`,{cx:`18`,cy:`12`,r:`4`,key:`4vafl8`}],[`line`,{x1:`6`,x2:`18`,y1:`16`,y2:`16`,key:`pmt8us`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

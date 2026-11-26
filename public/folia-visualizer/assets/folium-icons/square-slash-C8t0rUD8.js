@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-slash`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`line`,{x1:`9`,x2:`15`,y1:`15`,y2:`9`,key:`1dfufj`}]],aliases:[`slash-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

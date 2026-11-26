@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-chevron-up`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`m8 14 4-4 4 4`,key:`fy2ptz`}]],aliases:[`chevron-up-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-power`,size:24,node:[[`path`,{d:`M12 7v4`,key:`xawao1`}],[`path`,{d:`M7.998 9.003a5 5 0 1 0 8-.005`,key:`1pek45`}],[`rect`,{x:`3`,y:`3`,width:`18`,height:`18`,rx:`2`,key:`h1oib`}]],aliases:[`power-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`chart-bar`,size:24,node:[[`path`,{d:`M3 3v16a2 2 0 0 0 2 2h16`,key:`c24i48`}],[`path`,{d:`M7 16h8`,key:`srdodz`}],[`path`,{d:`M7 11h12`,key:`127s9w`}],[`path`,{d:`M7 6h3`,key:`w9rmul`}]],aliases:[`bar-chart-horizontal`]};t.node;var n=e(t);export{t as __iconData,n as default};

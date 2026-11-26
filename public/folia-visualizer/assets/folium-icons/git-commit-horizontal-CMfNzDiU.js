@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`git-commit-horizontal`,size:24,node:[[`circle`,{cx:`12`,cy:`12`,r:`3`,key:`1v7zrd`}],[`line`,{x1:`3`,x2:`9`,y1:`12`,y2:`12`,key:`1dyftd`}],[`line`,{x1:`15`,x2:`21`,y1:`12`,y2:`12`,key:`oup4p8`}]],aliases:[`git-commit`]};t.node;var n=e(t);export{t as __iconData,n as default};

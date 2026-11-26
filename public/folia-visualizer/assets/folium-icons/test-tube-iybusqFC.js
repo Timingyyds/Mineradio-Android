@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`test-tube`,size:24,node:[[`path`,{d:`M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5c-1.4 0-2.5-1.1-2.5-2.5V2`,key:`125lnx`}],[`path`,{d:`M8.5 2h7`,key:`csnxdl`}],[`path`,{d:`M14.5 16h-5`,key:`1ox875`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

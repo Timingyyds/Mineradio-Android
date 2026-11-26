@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-activity`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`M17 12h-2l-2 5-2-10-2 5H7`,key:`15hlnc`}]],aliases:[`activity-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

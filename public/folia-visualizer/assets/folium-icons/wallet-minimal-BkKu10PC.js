@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`wallet-minimal`,size:24,node:[[`path`,{d:`M17 14h.01`,key:`7oqj8z`}],[`path`,{d:`M7 7h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14`,key:`u1rqew`}]],aliases:[`wallet-2`]};t.node;var n=e(t);export{t as __iconData,n as default};

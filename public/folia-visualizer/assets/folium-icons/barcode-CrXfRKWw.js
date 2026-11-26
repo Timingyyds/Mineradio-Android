@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`barcode`,size:24,node:[[`path`,{d:`M3 5v14`,key:`1nt18q`}],[`path`,{d:`M8 5v14`,key:`1ybrkv`}],[`path`,{d:`M12 5v14`,key:`s699le`}],[`path`,{d:`M17 5v14`,key:`ycjyhj`}],[`path`,{d:`M21 5v14`,key:`nzette`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

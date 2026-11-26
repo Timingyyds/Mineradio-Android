@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`torus`,size:24,node:[[`ellipse`,{cx:`12`,cy:`11`,rx:`3`,ry:`2`,key:`1b2qxu`}],[`ellipse`,{cx:`12`,cy:`12.5`,rx:`10`,ry:`8.5`,key:`h8emeu`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

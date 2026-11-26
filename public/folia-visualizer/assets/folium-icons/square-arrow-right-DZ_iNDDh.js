@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-arrow-right`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`M8 12h8`,key:`1wcyev`}],[`path`,{d:`m12 16 4-4-4-4`,key:`1i9zcv`}]],aliases:[`arrow-right-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

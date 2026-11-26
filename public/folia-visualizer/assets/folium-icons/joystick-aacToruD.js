@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`joystick`,size:24,node:[[`path`,{d:`M21 17a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2Z`,key:`jg2n2t`}],[`path`,{d:`M6 15v-2`,key:`gd6mvg`}],[`path`,{d:`M12 15V9`,key:`8c7uyn`}],[`circle`,{cx:`12`,cy:`6`,r:`3`,key:`1gm2ql`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`hdmi-port`,size:24,node:[[`path`,{d:`M22 9a1 1 0 00-1-1H3a1 1 0 00-1 1v4a1 1 0 001 1h.5a2 2 0 011.6.8l.3.4A2 2 0 007 16h10a2 2 0 001.6-.8l.3-.4a2 2 0 011.6-.8h.5a1 1 0 001-1z`,key:`1kwg9h`}],[`path`,{d:`M8 12h8`,key:`1wcyev`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`lock-keyhole-open`,size:24,node:[[`circle`,{cx:`12`,cy:`16`,r:`1`,key:`1au0dj`}],[`rect`,{width:`18`,height:`12`,x:`3`,y:`10`,rx:`2`,key:`l0tzu3`}],[`path`,{d:`M7 10V7a5 5 0 0 1 9.33-2.5`,key:`car5b7`}]],aliases:[`unlock-keyhole`]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`clock-check`,size:24,node:[[`path`,{d:`M21.95 13a10 10 0 1 0-8.685 8.92`,key:`1ujumx`}],[`path`,{d:`M12 6v6l4 2`,key:`mmk7yg`}],[`path`,{d:`m16 19 2 2 4-4`,key:`1b14m6`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

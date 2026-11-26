@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`zodiac-sagittarius`,size:24,node:[[`path`,{d:`M15 3h6v6`,key:`1q9fwt`}],[`path`,{d:`M21 3 3 21`,key:`1011np`}],[`path`,{d:`m9 9 6 6`,key:`z0biqf`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

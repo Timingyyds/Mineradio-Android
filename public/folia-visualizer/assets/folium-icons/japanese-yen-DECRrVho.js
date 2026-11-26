@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`japanese-yen`,size:24,node:[[`path`,{d:`M12 9.5V21m0-11.5L6 3m6 6.5L18 3`,key:`2ej80x`}],[`path`,{d:`M6 15h12`,key:`1hwgt5`}],[`path`,{d:`M6 11h12`,key:`wf4gp6`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

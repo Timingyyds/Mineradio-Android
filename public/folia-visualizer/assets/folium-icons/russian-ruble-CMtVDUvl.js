@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`russian-ruble`,size:24,node:[[`path`,{d:`M6 11h8a4 4 0 0 0 0-8H9v18`,key:`18ai8t`}],[`path`,{d:`M6 15h8`,key:`1y8f6l`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

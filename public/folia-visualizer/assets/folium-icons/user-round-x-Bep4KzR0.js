@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`user-round-x`,size:24,node:[[`path`,{d:`m16.5 16.5 5 5`,key:`zc9lw7`}],[`path`,{d:`M2 21a8 8 0 0 1 11.531-7.18`,key:`x5izle`}],[`path`,{d:`m21.5 16.5-5 5`,key:`1empo3`}],[`circle`,{cx:`10`,cy:`8`,r:`5`,key:`o932ke`}]],aliases:[`user-x-2`]};t.node;var n=e(t);export{t as __iconData,n as default};

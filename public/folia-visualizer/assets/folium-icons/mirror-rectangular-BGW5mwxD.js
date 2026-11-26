@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`mirror-rectangular`,size:24,node:[[`path`,{d:`M11 6 8 9`,key:`7zt14w`}],[`path`,{d:`m16 7-8 8`,key:`tkgtvu`}],[`rect`,{x:`4`,y:`2`,width:`16`,height:`20`,rx:`2`,key:`1uxh74`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

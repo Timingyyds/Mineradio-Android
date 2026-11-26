@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-radical`,size:24,node:[[`path`,{d:`M7 12h2l2 5 2-10h4`,key:`1fxv6h`}],[`rect`,{x:`3`,y:`3`,width:`18`,height:`18`,rx:`2`,key:`h1oib`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

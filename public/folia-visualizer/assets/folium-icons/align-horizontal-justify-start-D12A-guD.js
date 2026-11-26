@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`align-horizontal-justify-start`,size:24,node:[[`rect`,{width:`6`,height:`14`,x:`6`,y:`5`,rx:`2`,key:`hsirpf`}],[`rect`,{width:`6`,height:`10`,x:`16`,y:`7`,rx:`2`,key:`13zkjt`}],[`path`,{d:`M2 2v20`,key:`1ivd8o`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

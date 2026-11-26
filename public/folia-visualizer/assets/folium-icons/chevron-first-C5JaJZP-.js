@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`chevron-first`,size:24,node:[[`path`,{d:`m17 18-6-6 6-6`,key:`1yerx2`}],[`path`,{d:`M7 6v12`,key:`1p53r6`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

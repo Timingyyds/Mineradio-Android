@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`turntable`,size:24,node:[[`path`,{d:`M10 12.01h.01`,key:`7rp0yl`}],[`path`,{d:`M18 8v4a8 8 0 0 1-1.07 4`,key:`1st48v`}],[`circle`,{cx:`10`,cy:`12`,r:`4`,key:`19levz`}],[`rect`,{x:`2`,y:`4`,width:`20`,height:`16`,rx:`2`,key:`izxlao`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

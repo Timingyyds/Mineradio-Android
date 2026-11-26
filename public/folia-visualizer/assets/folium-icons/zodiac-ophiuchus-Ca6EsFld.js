@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`zodiac-ophiuchus`,size:24,node:[[`path`,{d:`M3 10A6.06 6.06 0 0 1 12 10 A6.06 6.06 0 0 0 21 10`,key:`13lfmc`}],[`path`,{d:`M6 3v12a6 6 0 0 0 12 0V3`,key:`1jnivp`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

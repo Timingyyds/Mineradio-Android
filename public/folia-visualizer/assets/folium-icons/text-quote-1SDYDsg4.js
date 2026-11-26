@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`text-quote`,size:24,node:[[`path`,{d:`M17 5H3`,key:`1cn7zz`}],[`path`,{d:`M21 12H8`,key:`scolzb`}],[`path`,{d:`M21 19H8`,key:`13qgcb`}],[`path`,{d:`M3 12v7`,key:`1ri8j3`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

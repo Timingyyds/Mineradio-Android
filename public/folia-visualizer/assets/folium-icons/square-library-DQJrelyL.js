@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-library`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`M7 7v10`,key:`d5nglc`}],[`path`,{d:`M11 7v10`,key:`pptsnr`}],[`path`,{d:`m15 7 2 10`,key:`1m7qm5`}]],aliases:[`library-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-asterisk`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`M12 8v8`,key:`napkw2`}],[`path`,{d:`m8.5 14 7-4`,key:`12hpby`}],[`path`,{d:`m8.5 10 7 4`,key:`wwy2dy`}]],aliases:[`asterisk-square`]};t.node;var n=e(t);export{t as __iconData,n as default};

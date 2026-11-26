@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`zodiac-aries`,size:24,node:[[`path`,{d:`M12 7.5a4.5 4.5 0 1 1 5 4.5`,key:`k987hv`}],[`path`,{d:`M7 12a4.5 4.5 0 1 1 5-4.5V21`,key:`mjup0w`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

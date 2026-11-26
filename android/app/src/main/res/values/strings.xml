@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mineradio</string>
+    <string name="title_activity_main">Mineradio</string>
+    <string name="package_name">com.mineradio.android</string>
+    <string name="custom_url_scheme">com.mineradio.android</string>
+    <string name="wallpaper_service_label">Mineradio 壁纸</string>
+</resources>

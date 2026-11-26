@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`airplay`,size:24,node:[[`path`,{d:`M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1`,key:`ns4c3b`}],[`path`,{d:`m12 15 5 6H7Z`,key:`14qnn2`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

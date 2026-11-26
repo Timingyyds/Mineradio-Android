@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`rotate-ccw-key`,size:24,node:[[`path`,{d:`M12 7v6`,key:`lw1j43`}],[`path`,{d:`M12 9h2`,key:`1lpap9`}],[`path`,{d:`M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-6.74 2.74L3 8`,key:`g2jlw`}],[`path`,{d:`M3 3v5h5`,key:`1xhq8a`}],[`circle`,{cx:`12`,cy:`15`,r:`2`,key:`1vpstw`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

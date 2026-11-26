@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`credit-card-minus`,size:24,node:[[`path`,{d:`M22 13V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2h8.536`,key:`ljwgfh`}],[`path`,{d:`M22 10H2`,key:`jawrgs`}],[`path`,{d:`M6 14h2`,key:`mk7k0u`}],[`path`,{d:`M16 17h6`,key:`1ook5g`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

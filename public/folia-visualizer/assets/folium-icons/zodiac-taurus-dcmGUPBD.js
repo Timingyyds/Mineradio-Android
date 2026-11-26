@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`zodiac-taurus`,size:24,node:[[`circle`,{cx:`12`,cy:`15`,r:`6`,key:`lhqcmb`}],[`path`,{d:`M18 3A6 6 0 0 1 6 3`,key:`1p399e`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

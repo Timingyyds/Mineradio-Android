@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`tent`,size:24,node:[[`path`,{d:`M3.5 21 14 3`,key:`1szst5`}],[`path`,{d:`M20.5 21 10 3`,key:`1310c3`}],[`path`,{d:`M15.5 21 12 15l-3.5 6`,key:`1ddtfw`}],[`path`,{d:`M2 21h20`,key:`1nyx9w`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

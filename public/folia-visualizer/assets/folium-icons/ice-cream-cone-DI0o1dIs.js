@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`ice-cream-cone`,size:24,node:[[`path`,{d:`m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11`,key:`1v6356`}],[`path`,{d:`M17 7A5 5 0 0 0 7 7`,key:`151p3v`}],[`path`,{d:`M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4`,key:`1sdaij`}]],aliases:[`ice-cream`]};t.node;var n=e(t);export{t as __iconData,n as default};

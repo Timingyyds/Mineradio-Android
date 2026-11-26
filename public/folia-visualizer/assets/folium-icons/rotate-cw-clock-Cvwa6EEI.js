@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`rotate-cw-clock`,size:24,node:[[`path`,{d:`M12 7v5l4 2`,key:`1fdv2h`}],[`path`,{d:`M16 8h5V3`,key:`1fyz0c`}],[`path`,{d:`m21 8-2.3-2.3A9.7 9.7 0 0012 3a9 9 0 109 9`,key:`l7odlp`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`message-square-dot`,size:24,node:[[`path`,{d:`M12.7 3H4a2 2 0 0 0-2 2v16.286a.71.71 0 0 0 1.212.502l2.202-2.202A2 2 0 0 1 6.828 19H20a2 2 0 0 0 2-2v-4.7`,key:`wjb7ig`}],[`circle`,{cx:`19`,cy:`6`,r:`3`,key:`108a5v`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

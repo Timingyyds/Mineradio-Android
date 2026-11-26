@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`credit-card`,size:24,node:[[`rect`,{width:`20`,height:`14`,x:`2`,y:`5`,rx:`2`,key:`ynyp8z`}],[`line`,{x1:`2`,x2:`22`,y1:`10`,y2:`10`,key:`1b3vmo`}],[`path`,{d:`M6 14h2`,key:`mk7k0u`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`list-collapse`,size:24,node:[[`path`,{d:`M10 5h11`,key:`1hkqpe`}],[`path`,{d:`M10 12h11`,key:`6m4ad9`}],[`path`,{d:`M10 19h11`,key:`14g2nv`}],[`path`,{d:`m3 10 3-3-3-3`,key:`i7pm08`}],[`path`,{d:`m3 20 3-3-3-3`,key:`20gx1n`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

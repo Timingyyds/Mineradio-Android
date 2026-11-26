@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`zodiac-capricorn`,size:24,node:[[`path`,{d:`M11 21a3 3 0 0 0 3-3V6.5a1 1 0 0 0-7 0`,key:`1kkncs`}],[`path`,{d:`M7 19V6a3 3 0 0 0-3-3h0`,key:`1jg5y1`}],[`circle`,{cx:`17`,cy:`17`,r:`3`,key:`18b49y`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

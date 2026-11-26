@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`touchpad`,size:24,node:[[`rect`,{width:`20`,height:`16`,x:`2`,y:`4`,rx:`2`,key:`18n3k1`}],[`path`,{d:`M2 14h20`,key:`myj16y`}],[`path`,{d:`M12 20v-6`,key:`1rm09r`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

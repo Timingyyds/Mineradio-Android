@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`step-back`,size:24,node:[[`path`,{d:`M13.971 4.285A2 2 0 0 1 17 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z`,key:`19qhus`}],[`path`,{d:`M21 20V4`,key:`cb8qj8`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -109,3 +109,12 @@ __pycache__/
 .bodian-session.json
 .bodian-session.device
 .bodian-session*
+
+# ── 签名/密钥（不入库） ──
+*.keystore
+*.jks
+*.p12
+*.cer
+*.p7b
+.keys/
+.env.local

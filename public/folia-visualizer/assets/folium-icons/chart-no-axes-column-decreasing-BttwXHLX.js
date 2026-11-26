@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`chart-no-axes-column-decreasing`,size:24,node:[[`path`,{d:`M5 21V3`,key:`clc1r8`}],[`path`,{d:`M12 21V9`,key:`uvy0l4`}],[`path`,{d:`M19 21v-6`,key:`tkawy9`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

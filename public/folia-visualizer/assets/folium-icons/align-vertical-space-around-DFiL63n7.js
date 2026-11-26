@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`align-vertical-space-around`,size:24,node:[[`rect`,{width:`10`,height:`6`,x:`7`,y:`9`,rx:`2`,key:`b1zbii`}],[`path`,{d:`M22 20H2`,key:`1p1f7z`}],[`path`,{d:`M22 4H2`,key:`1b7qnq`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

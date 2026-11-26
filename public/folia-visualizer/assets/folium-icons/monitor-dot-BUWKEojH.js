@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`monitor-dot`,size:24,node:[[`path`,{d:`M12 17v4`,key:`1riwvh`}],[`path`,{d:`M22 12.307V15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8.693`,key:`1dx6ho`}],[`path`,{d:`M8 21h8`,key:`1ev6f3`}],[`circle`,{cx:`19`,cy:`6`,r:`3`,key:`108a5v`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

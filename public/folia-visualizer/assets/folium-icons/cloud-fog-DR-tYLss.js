@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`cloud-fog`,size:24,node:[[`path`,{d:`M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242`,key:`1pljnt`}],[`path`,{d:`M16 17H7`,key:`pygtm1`}],[`path`,{d:`M17 21H9`,key:`1u2q02`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`door-closed`,size:24,node:[[`path`,{d:`M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16`,key:`4uynto`}],[`path`,{d:`M2 21h20`,key:`1nyx9w`}],[`path`,{d:`M9 12h.01`,key:`157uk2`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

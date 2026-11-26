@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`clock-arrow-left`,size:24,node:[[`path`,{d:`M12 6v6l1.5.8`,key:`uc7jki`}],[`path`,{d:`M12.338 21.994a10 10 0 1 1 9.587-8.767`,key:`1lz5pu`}],[`path`,{d:`M14 18h8`,key:`1le3fr`}],[`path`,{d:`m18 22-4-4 4-4`,key:`dh5o1f`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <!--
+        酷狗的媒体 CDN 大量只监听 HTTP（例如 VIP 曲目的 fsandroid.tx.kugou.com /
+        fs.youthandroid2.kugou.com 完全没有 TLS），强制走 https 会直接连不上，
+        表现就是「VIP 歌刚开始播就停」。这里对 *.kugou.com 放开明文，其余域名仍只允许 https。
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">kugou.com</domain>
+        <!--
+            【修复】本地音频流服务器（LocalAudioServer，127.0.0.1）必须放行明文：
+            本地歌曲的音频存在 App 私有目录，WebView 通过 http://127.0.0.1:<port>/audio/...
+            播放。之前 base-config 禁了明文，WebView 加载这个地址直接被系统网络栈拦截，
+            audio 元素报「无法播放媒体」——这正是重启后本地歌点播放失败、导入后播不出的根因。
+            127.0.0.1 是 App 自己的回环地址，不出网，无安全风险。
+        -->
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <!--
+            官网是 http（buchumingdetiming.top，OSS 静态站，没有配 https）：
+            App 启动读 /mineradio-version.json 做更新检查，明文被禁就会报
+            "CLEARTEXT communication not permitted"，更新提示永远不弹。
+            这里只对官网这一个域名放开明文。
+        -->
+        <domain includeSubdomains="true">buchumingdetiming.top</domain>
+    </domain-config>
+</network-security-config>

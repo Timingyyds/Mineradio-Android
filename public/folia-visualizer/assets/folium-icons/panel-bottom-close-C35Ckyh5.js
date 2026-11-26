@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`panel-bottom-close`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`M3 15h18`,key:`5xshup`}],[`path`,{d:`m15 8-3 3-3-3`,key:`1oxy1z`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

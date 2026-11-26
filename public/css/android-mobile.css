@@ -1,0 +1,210 @@
+/* ============================================================
+   Mineradio Android 移动端适配样式（追加，不改原版 css）
+   目的：
+   1. 去掉 WebView / 浏览器默认的点击视觉反馈（安卓上点一下会闪一块半透明方块）
+   2. 去掉长按弹菜单、拖动选中文字这些桌面浏览器才有的行为
+   3. 去掉输入框/按钮的默认焦点描边
+
+   原版桌面 css 一行未改：升级上游时只需替换 css/index.css，这个文件继续生效。
+   ============================================================ */
+
+/* --- 1. 点击高亮：安卓 WebView 上最明显的那块闪 --- */
+*,
+*::before,
+*::after {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-tap-highlight: transparent !important;
+    -webkit-touch-callout: none !important;
+}
+
+/* --- 2. 焦点描边：键盘/触摸聚焦时的轮廓 --- */
+*:focus,
+*:active,
+*:focus-visible,
+*:focus-within {
+    outline: none !important;
+    box-shadow: none;
+}
+
+/* --- 3. 拖动选中文字：桌面习惯，触屏上只会误触 --- */
+html,
+body {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    /* 阻止整页橡皮筋回弹 */
+    overscroll-behavior: none;
+    /* 触摸滚动更顺，且不触发浏览器的下拉刷新 */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 输入框仍然要能选中、能编辑，否则没法改歌单名、粘贴链接 */
+input,
+textarea,
+[contenteditable="true"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* --- 4. 长按菜单：安卓上长按会弹「复制/搜索」，触屏播放器用不到 --- */
+img,
+a,
+button,
+[role="button"] {
+    -webkit-touch-callout: none !important;
+    -webkit-user-drag: none;
+}
+
+/* --- 4.5 3D 场景画布：单指拖动用来旋转粒子封面 ---
+   只给 canvas 本身设置，容器不设：容器是全屏 fixed 层，写在容器上会把
+   上层按钮的触摸手势一并锁掉（右下角设置、左侧歌单就点不开了）。
+   不设 touch-action 的话，手指一划会被当成页面平移/双击缩放，
+   画面看起来像「整块被拖走 / 被拉伸」，3D 粒子本身完全不转。 */
+#canvas-container canvas {
+    touch-action: none;
+    -ms-touch-action: none;
+}
+
+/* --- 5. 整页布局：固定为视口，避免 65% 缩放后出现多余滚动条 --- */
+html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #09090b;
+}
+
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   底部音乐控制栏：去掉玻璃（backdrop-filter），换成实心背景
+   原因：backdrop-filter 在安卓 WebView 上是每帧重新采样背景的合成操作，
+   叠在 3D 粒子/歌词之上会把帧率拖垮。SVG 滤镜版本（control-glass-svg-ok）更重。
+   这里用 !important 盖过原版 css 的两条规则，不改原文件。
+   ============================================================ */
+
+#bottom-bar,
+#bottom-bar.visible,
+html.control-glass-svg-ok #bottom-bar,
+html.control-glass-svg-ok #bottom-bar.visible {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* 实心深色背景替代原来的半透明玻璃，保证可读性 */
+#bottom-bar.visible {
+    background: rgba(10, 10, 12, .82) !important;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .38),
+                inset 0 0 0 1px rgba(255, 255, 255, .07) !important;
+}
+
+/* 播放页（stage-mode）那条同样处理 */
+#bottom-bar.stage-mode.visible {
+    background: rgba(10, 10, 12, .82) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+
+/* ============================================================
+   整体界面缩放：动态 viewport 宽度
+   ------------------------------------------------------------
+   走过的弯路，记在这里免得再踩：
+     - width=400 / width=1120 直接写死：换台设备尺寸就全乱，不可用。
+     - html { zoom: 0.3571 }：画面被缩了，但布局视口没变。
+       vw/vh 仍按屏幕物理尺寸算，于是元素被缩、间距和定位却没缩，
+       结果就是「按钮小了但排版错位」。
+     - 把 zoom 值调大能缓解，但只是碰运气，不是修好。
+
+   正确做法：布局宽度 = 屏幕宽度 / 目标比例，交给浏览器去缩。
+     vw 跟着布局宽度走 —— 1vw 始终等于「布局宽度的 1%」，
+     排版和缩放用的是同一把尺子，不会脱节。
+   具体数值由 index.html 顶部那段脚本在启动时算，见那里。
+   ============================================================ */
+
+/* 页面按计算出的固定宽度排版后，禁止横向滚动条 */
+html,
+body {
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+
+/* ============================================================
+   手机端 DIY 按钮（#top-right 里，home 左边）
+   桌面版那个 DIY 在窗口栏里，手机上根本看不到；
+   这里在账号胶囊旁边补一个，样式跟同排的 icon-btn 一致。
+   ============================================================ */
+
+#diy-mode-btn-mobile .diy-mobile-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    line-height: 1;
+}
+
+/* 开启状态的标记：与页面其他 DIY 按钮的 .on 类保持同一套视觉语言 */
+#diy-mode-btn-mobile.on {
+    color: #f4d28a;
+    box-shadow: inset 0 0 0 1px rgba(244, 210, 138, .55);
+    background: rgba(244, 210, 138, .12);
+}
+
+/* ============================================================
+   音质面板：按平台分组
+   登录了多家平台后，面板里每家的档位各占一段；条目变多时限制高度并可滚动，
+   避免从底部控制条弹出来时超出屏幕。
+   ============================================================ */
+#quality-option-list {
+    max-height: 46vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.quality-provider-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+
+.quality-provider-group + .quality-provider-group {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(157, 184, 207, .18);
+}
+
+.quality-provider-title {
+    font-size: 11px;
+    letter-spacing: .04em;
+    opacity: .62;
+    padding: 0 4px 2px;
+    text-align: left;
+}
+
+/* ============================================================
+   歌单详情列表
+   虚拟滚动按 PLAYLIST_DETAIL_ROW_STEP = 56px 估算每行高度，但列表原本带 6px 间距，
+   实际内容比估算高出一截 —— 滚到底会出现「滑不动 / 后面的歌滑不出来」。
+   这里把行高与间距对齐成固定 56px，面板才能完整滚动到底。
+   ============================================================ */
+#playlist-panel {
+    touch-action: pan-y;
+}
+
+#playlist-panel .pl-detail-list {
+    gap: 0;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+}
+
+#playlist-panel .pl-detail-row {
+    height: 56px;
+    min-height: 56px;
+    box-sizing: border-box;
+    padding-top: 0;
+    padding-bottom: 0;
+}

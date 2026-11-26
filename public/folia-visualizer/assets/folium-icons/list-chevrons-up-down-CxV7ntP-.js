@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`list-chevrons-up-down`,size:24,node:[[`path`,{d:`M3 5h8`,key:`18g2rq`}],[`path`,{d:`M3 12h8`,key:`1xfjp6`}],[`path`,{d:`M3 19h8`,key:`fpbke4`}],[`path`,{d:`m15 8 3-3 3 3`,key:`bc4io6`}],[`path`,{d:`m15 16 3 3 3-3`,key:`9wmg1l`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

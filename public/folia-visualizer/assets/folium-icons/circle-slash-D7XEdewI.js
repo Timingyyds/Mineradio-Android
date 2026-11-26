@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`circle-slash`,size:24,node:[[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}],[`line`,{x1:`9`,x2:`15`,y1:`15`,y2:`9`,key:`1dfufj`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

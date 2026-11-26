@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`align-end-horizontal`,size:24,node:[[`rect`,{width:`6`,height:`16`,x:`4`,y:`2`,rx:`2`,key:`z5wdxg`}],[`rect`,{width:`6`,height:`9`,x:`14`,y:`9`,rx:`2`,key:`um7a8w`}],[`path`,{d:`M22 22H2`,key:`19qnx5`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,124 +1,84 @@
-# Mineradio Android 客户端
+# Mineradio · Android 客户端源码
 
-Mineradio 的 **Android 客户端源码**（横屏 H5 界面 + Kotlin 壳 + Node.js 桥接 + Native C++）。
+Mineradio 音乐播放器的 Android 端源码，当前版本 **2.2.2**（versionCode 20204）。
 
-> ⚠️ **本仓库包含完整的签名密钥与运行时密钥**，这是作者的明确决定，
-> 以便任何人都能构建出与正式版完全一致的 APK。
-> **请务必先阅读 [SECURITY_NOTICE.md](./SECURITY_NOTICE.md)** ——
-> 签名密钥公开意味着任何人都能签出同包名、同签名、被 Android 视为合法升级的安装包。
+界面是一套完整的横屏 H5 应用，跑在 Capacitor 的 WebView 里；播放器本体、音源解析、
+壁纸引擎、桌面萌宠这些「系统级」能力由 Kotlin / Java 侧的 Capacitor 插件补齐。
+启动后直接进入横屏主界面，没有另做一套原生 UI。
+
+> 本仓库只包含源码。**不含任何签名密钥、账号凭据或网盘分享地址**，
+> 自行构建需要在本地准备签名（见下文「构建」）。
 
 ---
 
-## 技术构成
+## 目录结构
 
-| 层 | 位置 | 说明 |
-|---|---|---|
-| Android 壳 | `app/src/main/java/` | Activity、壁纸服务、播放器桥接、登录面板 |
-| 横屏 H5 界面 | `app/src/main/mineradio_src/` | 界面主体（JS / CSS / HTML），构建时 AES 加密进 assets |
-| Node.js 后端 | `app/src/main/nodejs-project-src/` | 各平台音源解析，构建时加密进 assets |
-| Native | `app/src/main/cpp/` | libnode、Live2D、RN 桥接、资源解密 |
-| 资源 | `app/src/main/assets/` | 材质、字体、着色器、模型 |
-| 子模块 | `common/` `core-preferences/` `feature-*/` `navkit/` | 功能拆分 |
+| 路径 | 内容 |
+|---|---|
+| `public/` | 横屏 H5 界面主体：`index.html`、`css/`、`js/modules/`、`js/ported/`、`folia-visualizer/` |
+| `public/js/modules/` | 界面逻辑，按域拆成 `00-state`、`01-scene`、`02-visual`、`03-beat`、`04-shelf`、`05-playback`、`06-lyrics`、`07-fx`、`08-account`、`10-shell` 等目录 |
+| `public/js/index-loader.js` | 模块加载器，按顺序把上面的模块挂到全局运行时 |
+| `android/app/src/main/java/com/mineradio/android/` | Capacitor 插件（`FoliaCore`、`FoliaBridge`、`MineradioPlugins`、`MineradioSystem`、`MpkgWallpaper` 等） |
+| `android/app/src/main/java/com/mineradio/android/wallpaper/` | 动态壁纸服务、MPKG 场景解析与 GL 渲染 (GLES20/GLES30)、Live2D 萌宠 |
+| `android/app/src/main/assets/` | 材质、字体、着色器 (`*.frag`)、Live2D 模型、手势识别模型 |
+| `android/app/libs/arm64-v8a/` | 壁纸场景与 Live2D 的原生库（仅 arm64-v8a） |
+| `scripts/` | 打包与资源处理脚本（`build-public.mjs`、`port-node-module.cjs` 等） |
+| `capacitor.config.json` | 应用 id `Mineradio.timing`、`webDir: public`、WebView 相关开关 |
 
-界面为**纯横屏**，启动后直接进入横屏 H5，不含竖屏 Compose 界面。
+## 功能构成
 
-## 环境要求
+- **播放**：网易云、QQ 音乐、酷狗、汽水、Spotify 的音源解析与在线切换，播放队列、音量/音质、音频缓存
+- **视觉**：粒子与着色器视觉、3D 歌单架、Sonic 工作台、音频频谱地形
+- **歌词**：逐行/逐字歌词、歌词舞台、桌面歌词（`desktop-lyrics.html`）
+- **壁纸引擎**：MPKG 场景壁纸解析与渲染、在线壁纸库、桌面萌宠（Live2D）
+- **插件系统**：`12-plugin-runtime.js` 提供插件运行时，`13-online-plugin-store.js` 是在线插件面板
 
-- JDK 17 或更高（实测 JDK 21 可用）
-- Android SDK（含 NDK，用于编译 `app/src/main/cpp/`）
-- 首次构建需联网下载 Gradle 与依赖
+## 在线插件目录（需自行配置）
+
+在线插件面板通过一个网盘「文件夹分享」地址拉列表，代码里 **不内置任何地址**：
+
+```js
+// public/js/modules/13-online-plugin-store.js
+var OFFICIAL_PLUGIN_FOLDER = '';   // 官方插件目录，留空 = 未配置
+var ONLINE_PLUGIN_FOLDER   = '';   // 第三方插件目录，留空 = 未配置
+```
+
+留空时面板会直接显示「未配置插件目录」，不会发任何网络请求。
+要启用，把你自己维护的分享文件夹地址填进去即可。
 
 ## 构建
 
-1. 创建 `local.properties` 指向你的 SDK：
+```bash
+# 1. 前端
+npm install
+npm run build          # 由 scripts/build-public.mjs 处理 public/ 资源
+npx cap sync android
 
-   ```properties
-   sdk.dir=/你的/Android/SDK/路径
-   ```
-
-2. 在项目根目录执行：
-
-   ```bash
-   # Windows
-   gradlew.bat assembleRelease
-
-   # macOS / Linux
-   ./gradlew assembleRelease
-   ```
-
-3. 产物位置：
-
-   ```
-   app/build/outputs/apk/release/app-release.apk
-   ```
-
-### 关于签名
-
-本仓库**已包含签名密钥** `key.jks`，签名配置直接内联在 `app/build.gradle` 中，
-因此 clone 后执行 `assembleRelease` 即可构建出**与正式版同签名**的 APK。
-
-```groovy
-signingConfigs {
-  signingConfig {
-    storeFile rootProject.file("key.jks")
-    storePassword '...'
-    keyAlias '...'
-    keyPassword '...'
-  }
-}
+# 2. Android
+cd android
+./gradlew assembleDebug      # 或 assembleRelease
 ```
 
-> ⚠️ 该密钥**公开可见**。如果你要发布自己的版本，请**务必替换成你自己的密钥**，
-> 不要复用这里的密钥。详见 [SECURITY_NOTICE.md](./SECURITY_NOTICE.md)。
+要求：JDK 17+、Android SDK（compileSdk / NDK 见根 `build.gradle`、`android/variables.gradle`），
+首次构建需联网拉 Gradle 与依赖。ABI 固定 `arm64-v8a`，`minSdkVersion` 见 `variables.gradle`。
 
-## 版本号
+### 签名
 
-修改根目录 `gradle.properties` 中四个字段即可，APK 版本信息会自动同步：
+`android/app/build.gradle` 里预留了签名入口，按以下优先级查找密钥文件：
 
-```
-MAJOR_VERSION=2
-MINOR_VERSION=1
-BUILD_VERSION=0
-PATCH_VERSION=0
-```
+1. 环境变量 `DSH_KEYSTORE` 指向的路径
+2. 源码根目录 `.keys/dsh-release.keystore`
+3. `android/app/dsh-release.keystore`
 
-`versionName = MAJOR.MINOR.BUILD.PATCH`
-`versionCode = 3000000 + MAJOR*1000000 + MINOR*100000 + BUILD*1000 + PATCH`
+密码 / 别名可用 `DSH_STOREPASS`、`DSH_KEYALIAS`、`DSH_KEYPASS` 覆盖。
+仓库不提供任何密钥文件，请自己生成：
 
-## 目录说明
-
-```
-app/                                  主模块
-  src/main/java/                      Kotlin 源码
-  src/main/mineradio_src/             横屏 H5 界面（构建时加密）
-  src/main/nodejs-project-src/        Node.js 后端（构建时加密）
-    node_modules/                     运行时依赖，属于源码的一部分，请勿删除
-  src/main/cpp/                       C++ / CMake
-  src/main/assets/                    材质、字体、着色器、模型
-  src/main/qishui-security-src/       汽水音乐风控 WebView 参考副本
-  libs/arm64-v8a/                     预编译 so
-common/ core-preferences/ feature-*/ navkit/   功能子模块
-gradle/                               Gradle Wrapper 与版本目录
+```bash
+keytool -genkeypair -v -keystore android/app/dsh-release.keystore \
+  -alias dshkey -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-## 第三方音乐平台说明
+## 许可
 
-本客户端不是任何音乐平台的官方客户端，也不隶属于任何音乐平台。
-
-项目中的第三方平台接入仅用于个人学习、本地播放辅助与用户自有账号的体验。
-请遵守对应平台的用户协议、版权规则与会员权益规则。
-项目不提供绕过付费、绕过会员、破解音质或重新分发音乐内容的能力。
-
-## 用户数据与隐私
-
-登录 Cookie、搜索历史、自定义封面、自定义歌词、节奏分析缓存等数据只保存在本机，
-不应提交到仓库。更多说明见 [PRIVACY.md](./PRIVACY.md)。
-
-## 版权与授权
-
-Copyright (C) 2026 Timingyyds.
-
-本项目采用 GPL-3.0 授权，详见 [LICENSE](./LICENSE)。
-
-MR Logo、Mineradio 名称、界面视觉设计与原创视觉表达归作者所有；
-第三方依赖与第三方服务分别遵循其各自授权与服务条款。
+GPL-3.0-only，见 [LICENSE](./LICENSE)。第三方组件与出处见 [NOTICE.md](./NOTICE.md)，
+隐私说明见 [PRIVACY.md](./PRIVACY.md)。

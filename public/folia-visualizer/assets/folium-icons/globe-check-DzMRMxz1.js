@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`globe-check`,size:24,node:[[`path`,{d:`m15 6 2 2 4-4`,key:`levio8`}],[`path`,{d:`M2 12h20A10 10 0 1 1 12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 4-10`,key:`46evmv`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

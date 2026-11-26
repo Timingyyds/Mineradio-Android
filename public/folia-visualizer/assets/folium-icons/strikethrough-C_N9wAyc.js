@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`strikethrough`,size:24,node:[[`path`,{d:`M16 4H9a3 3 0 0 0-2.83 4`,key:`43sutm`}],[`path`,{d:`M14 12a4 4 0 0 1 0 8H6`,key:`nlfj13`}],[`line`,{x1:`4`,x2:`20`,y1:`12`,y2:`12`,key:`1e0a9i`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

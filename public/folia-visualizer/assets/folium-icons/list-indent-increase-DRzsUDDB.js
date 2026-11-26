@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`list-indent-increase`,size:24,node:[[`path`,{d:`M21 5H11`,key:`us1j55`}],[`path`,{d:`M21 12H11`,key:`wd7e0v`}],[`path`,{d:`M21 19H11`,key:`saa85w`}],[`path`,{d:`m3 8 4 4-4 4`,key:`1a3j6y`}]],aliases:[`indent`,`indent-increase`]};t.node;var n=e(t);export{t as __iconData,n as default};

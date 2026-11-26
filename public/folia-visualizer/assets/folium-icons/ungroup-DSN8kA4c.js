@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`ungroup`,size:24,node:[[`rect`,{x:`11`,y:`14`,width:`10`,height:`7`,rx:`2`,key:`nfm8rk`}],[`rect`,{x:`3`,y:`3`,width:`10`,height:`7`,rx:`2`,key:`1ljebb`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

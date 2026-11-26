@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`underline`,size:24,node:[[`path`,{d:`M6 4v6a6 6 0 0 0 12 0V4`,key:`9kb039`}],[`line`,{x1:`4`,x2:`20`,y1:`20`,y2:`20`,key:`nun2al`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

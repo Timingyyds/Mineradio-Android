@@ -1,0 +1,22 @@
+{
+  "name": "mineradio-android",
+  "productName": "Mineradio",
+  "description": "Mineradio Android 客户端",
+  "author": "Mineradio",
+  "private": true,
+  "version": "1.0.0",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-public.mjs",
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  }
+}

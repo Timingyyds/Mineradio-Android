@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`person-standing`,size:24,node:[[`circle`,{cx:`12`,cy:`5`,r:`1`,key:`gxeob9`}],[`path`,{d:`m9 20 3-6 3 6`,key:`se2kox`}],[`path`,{d:`m6 8 6 2 6-2`,key:`4o3us4`}],[`path`,{d:`M12 10v4`,key:`1kjpxc`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

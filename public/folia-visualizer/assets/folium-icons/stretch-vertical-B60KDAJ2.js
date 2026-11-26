@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`stretch-vertical`,size:24,node:[[`rect`,{width:`6`,height:`20`,x:`4`,y:`2`,rx:`2`,key:`19qu7m`}],[`rect`,{width:`6`,height:`20`,x:`14`,y:`2`,rx:`2`,key:`24v0nk`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

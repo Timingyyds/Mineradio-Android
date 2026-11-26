@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`flag-triangle-left`,size:24,node:[[`path`,{d:`M18 22V2.8a.8.8 0 0 0-1.17-.71L5.45 7.78a.8.8 0 0 0 0 1.44L18 15.5`,key:`rbbtmw`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

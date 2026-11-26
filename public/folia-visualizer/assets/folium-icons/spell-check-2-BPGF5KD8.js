@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`spell-check-2`,size:24,node:[[`path`,{d:`m6 16 6-12 6 12`,key:`1b4byz`}],[`path`,{d:`M8 12h8`,key:`1wcyev`}],[`path`,{d:`M4 21c1.1 0 1.1-1 2.3-1s1.1 1 2.3 1c1.1 0 1.1-1 2.3-1 1.1 0 1.1 1 2.3 1 1.1 0 1.1-1 2.3-1 1.1 0 1.1 1 2.3 1 1.1 0 1.1-1 2.3-1`,key:`8mdmtu`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

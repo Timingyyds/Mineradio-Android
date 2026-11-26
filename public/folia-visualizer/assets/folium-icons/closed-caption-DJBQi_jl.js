@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`closed-caption`,size:24,node:[[`path`,{d:`M10 9.17a3 3 0 1 0 0 5.66`,key:`h9wayk`}],[`path`,{d:`M17 9.17a3 3 0 1 0 0 5.66`,key:`1v6zke`}],[`rect`,{x:`2`,y:`5`,width:`20`,height:`14`,rx:`2`,key:`qneu4z`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

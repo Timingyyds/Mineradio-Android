@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`radio-receiver`,size:24,node:[[`path`,{d:`M5 16v2`,key:`g5qcv5`}],[`path`,{d:`M19 16v2`,key:`1gbaio`}],[`rect`,{width:`20`,height:`8`,x:`2`,y:`8`,rx:`2`,key:`vjsjur`}],[`path`,{d:`M18 12h.01`,key:`yjnet6`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

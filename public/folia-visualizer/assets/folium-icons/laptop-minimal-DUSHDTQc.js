@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`laptop-minimal`,size:24,node:[[`rect`,{width:`18`,height:`12`,x:`3`,y:`4`,rx:`2`,ry:`2`,key:`1qhy41`}],[`line`,{x1:`2`,x2:`22`,y1:`20`,y2:`20`,key:`ni3hll`}]],aliases:[`laptop-2`]};t.node;var n=e(t);export{t as __iconData,n as default};

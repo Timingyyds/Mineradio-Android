@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`circle-arrow-out-down-right`,size:24,node:[[`path`,{d:`M12 22a10 10 0 1 1 10-10`,key:`130bv5`}],[`path`,{d:`M22 22 12 12`,key:`131aw7`}],[`path`,{d:`M22 16v6h-6`,key:`1gvm70`}]],aliases:[`arrow-down-right-from-circle`]};t.node;var n=e(t);export{t as __iconData,n as default};

@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`hard-drive-upload`,size:24,node:[[`path`,{d:`m16 6-4-4-4 4`,key:`13yo43`}],[`path`,{d:`M12 2v8`,key:`1q4o3n`}],[`rect`,{width:`20`,height:`8`,x:`2`,y:`14`,rx:`2`,key:`w68u3i`}],[`path`,{d:`M6 18h.01`,key:`uhywen`}],[`path`,{d:`M10 18h.01`,key:`h775k`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

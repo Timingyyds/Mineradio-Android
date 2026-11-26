@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`lasso`,size:24,node:[[`path`,{d:`M3.704 14.467a10 8 0 1 1 3.115 2.375`,key:`wxgc5m`}],[`path`,{d:`M7 22a5 5 0 0 1-2-3.994`,key:`1xp6a4`}],[`circle`,{cx:`5`,cy:`16`,r:`2`,key:`18csp3`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

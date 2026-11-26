@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`pilcrow-left`,size:24,node:[[`path`,{d:`M14 3v11`,key:`mlfb7b`}],[`path`,{d:`M14 9h-3a3 3 0 0 1 0-6h9`,key:`1ulc19`}],[`path`,{d:`M18 3v11`,key:`1phi0r`}],[`path`,{d:`M22 18H2l4-4`,key:`yt65j9`}],[`path`,{d:`m6 22-4-4`,key:`6jgyf5`}]]};t.node;var n=e(t);export{t as __iconData,n as default};

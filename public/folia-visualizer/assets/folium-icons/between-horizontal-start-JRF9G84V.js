@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`between-horizontal-start`,size:24,node:[[`rect`,{width:`13`,height:`7`,x:`8`,y:`3`,rx:`1`,key:`pkso9a`}],[`path`,{d:`m2 9 3 3-3 3`,key:`1agib5`}],[`rect`,{width:`13`,height:`7`,x:`8`,y:`14`,rx:`1`,key:`1q5fc1`}]],aliases:[`between-horizonal-start`]};t.node;var n=e(t);export{t as __iconData,n as default};

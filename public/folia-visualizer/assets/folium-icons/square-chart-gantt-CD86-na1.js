@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`square-chart-gantt`,size:24,node:[[`rect`,{width:`18`,height:`18`,x:`3`,y:`3`,rx:`2`,key:`afitv7`}],[`path`,{d:`M9 8h7`,key:`kbo1nt`}],[`path`,{d:`M8 12h6`,key:`ikassy`}],[`path`,{d:`M11 16h5`,key:`oq65wt`}]],aliases:[`gantt-chart-square`,`square-gantt-chart`]};t.node;var n=e(t);export{t as __iconData,n as default};

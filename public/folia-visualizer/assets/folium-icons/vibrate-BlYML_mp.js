@@ -1,0 +1,1 @@
+import{h as e}from"../lucide-icons-H1yCxiJ2.js";var t={name:`vibrate`,size:24,node:[[`path`,{d:`m2 8 2 2-2 2 2 2-2 2`,key:`sv1b1`}],[`path`,{d:`m22 8-2 2 2 2-2 2 2 2`,key:`101i4y`}],[`rect`,{width:`8`,height:`14`,x:`8`,y:`5`,rx:`1`,key:`1oyrl4`}]]};t.node;var n=e(t);export{t as __iconData,n as default};
